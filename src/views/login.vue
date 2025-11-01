@@ -1,37 +1,175 @@
+<script setup lang="ts">
+import {ElMessage} from 'element-plus'
+import {computed, ref, watch} from 'vue'
+import {authAuthorize, authSendSms} from '@/api/auth'
+import {useUserStore} from '@/store/modules/user.ts'
+
+interface Props {
+  visible: boolean
+}
+
+interface Emits {
+  (e: 'update:visible', value: boolean): void
+
+  (e: 'loginSuccess', userData: any): void
+
+  (e: 'logoutSuccess'): void
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<Emits>()
+
+const loading = ref(false)
+const loginType = ref<'wechat' | 'phone'>('wechat')
+const qrCodeUrl = ref('')
+
+// 计算对话框样式
+const dialogStyle = computed(() => ({
+  height: '50vh',
+  maxHeight: '50vh',
+  marginTop: '15vh',
+  borderRadius: '16px',
+  boxShadow: 'none',
+}))
+
+const phoneForm = ref({
+  phone: '',
+  code: '',
+})
+
+const aiFeatures = [
+  {name: '对话', icon: 'i-mdi:chat', position: 'top'},
+  {name: '绘画', icon: 'i-mdi:palette', position: 'bottom-left'},
+  {name: '视频', icon: 'i-mdi:video', position: 'top-left'},
+  {name: '语音', icon: 'i-mdi:microphone', position: 'top-right'},
+  {name: '模型', icon: 'i-mdi:robot', position: 'bottom-right'},
+  {name: '应用', icon: 'i-mdi:apps', position: 'center'},
+]
+
+
+watch(
+  () => props.visible,
+  (newVal) => {
+    if (newVal) {
+      getQrCode()
+    }
+  },
+)
+
+const userStore = useUserStore()
+
+async function onPhoneSubmit(e: Event) {
+  e.preventDefault()
+  if (!phoneForm.value.phone || !phoneForm.value.code) {
+    ElMessage.error('请填写完整的手机号和验证码')
+    return
+  }
+  loading.value = true
+  try {
+    userStore.smsLogin(phoneForm.value.phone, phoneForm.value.code)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function sendSms() {
+  const phone = phoneForm.value.phone
+  if (!phone) {
+    ElMessage.error('请输入手机号')
+    return
+  }
+
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    ElMessage.error('请输入正确的手机号码')
+    return
+  }
+
+  try {
+    await authSendSms({
+      mobile: phone,
+      templateCode: 'SMS_491995068',
+    })
+    ElMessage.success('验证码已发送')
+    startCountdown()
+  } catch (error) {
+    ElMessage.error('发送验证码失败，请重试')
+    console.error('Send SMS error:', error)
+  }
+}
+
+function handleClose() {
+  userStore.showLoginModal = false
+  phoneForm.value.phone = ''
+  phoneForm.value.code = ''
+  emit('update:visible', false)
+}
+
+// 获取二维码url,展示二维码图片
+async function getQrCode() {
+  loginType.value = 'wechat'
+  stopCountdown()
+  try {
+    const response = await authAuthorize({
+      type: 'wechat',
+      callBack: '/ai/wechat/callback',
+    })
+    if (response.data) {
+      qrCodeUrl.value = response.data
+    } else {
+      ElMessage.error('获取二维码失败')
+    }
+  } catch {
+    ElMessage.error('获取二维码失败，请重试')
+  }
+}
+
+const countdown = ref(60)
+const timer = ref(null)
+const isCounting = ref(false)
+const buttonText = computed(() => {
+  return isCounting.value ? `${countdown.value}s` : '获取验证码'
+})
+
+// 倒计时
+function startCountdown() {
+  isCounting.value = true
+  countdown.value = 60
+  timer.value = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      stopCountdown()
+    }
+  }, 1000)
+}
+
+// 停止倒计时
+function stopCountdown() {
+  clearInterval(timer.value)
+  isCounting.value = false
+}
+</script>
+
 <template>
   <el-dialog
     :model-value="visible"
-    @update:model-value="$emit('update:visible', $event)"
     :show-close="false"
     :close-on-click-modal="false"
     :close-on-press-escape="false"
-    width="50%"
+    width="45%"
     class="ai-login-modal"
     :style="dialogStyle"
+    @update:model-value="$emit('update:visible', $event)"
   >
     <div class="login-page">
-      <!-- 关闭按钮 -->
-      <button class="close-btn" @click="handleClose">
-        <FaIcon name="i-mdi:close"/>
-      </button>
-
       <!-- 左侧功能展示区 -->
       <div class="left-section">
         <div class="content">
-          <h1 class="title">Hello, 欢迎登录数游论坛</h1>
-          <p class="subtitle">更多精彩等你来发现</p>
-
-          <!-- 3D螺旋图形 -->
-          <div class="spiral-container">
-            <div class="spiral">
-              <div class="ring ring-1"></div>
-              <div class="ring ring-2"></div>
-              <div class="ring ring-3"></div>
-              <div class="ring ring-4"></div>
-              <div class="ring ring-5"></div>
-              <div class="ring ring-6"></div>
-            </div>
-          </div>
+          <h1 class="title">
+            Hello, 欢迎登录数游科技
+          </h1>
+          <p class="subtitle">
+            更多精彩等你来发现
+          </p>
 
           <!-- AI功能按钮 -->
           <div class="ai-features">
@@ -48,14 +186,18 @@
         </div>
       </div>
 
+      <!-- 关闭按钮 -->
+      <button class="close-btn" @click="handleClose">
+        <FaIcon name="i-mdi:close"/>
+      </button>
+
       <!-- 右侧登录面板 -->
       <div class="right-section">
         <div class="login-panel">
           <div class="brand">
-            <div class="logo">
-              <FaIcon name="i-mdi:brain" class="logo-icon"/>
-            </div>
-            <h2 class="brand-name">数游论坛</h2>
+            <h2 class="brand-name">
+              数游科技
+            </h2>
           </div>
 
           <div class="login-tabs">
@@ -103,27 +245,28 @@
             <form @submit="onPhoneSubmit">
               <div class="form-item">
                 <input
+                  v-model="phoneForm.phone"
                   type="tel"
                   placeholder="请输入手机号"
                   class="phone-input"
-                  v-model="phoneForm.phone"
-                />
+                >
               </div>
 
               <div class="form-item">
                 <div class="code-input-group">
                   <input
+                    v-model="phoneForm.code"
                     type="text"
                     placeholder="请输入验证码"
                     class="code-input"
-                    v-model="phoneForm.code"
-                  />
+                  >
                   <button
                     type="button"
                     class="send-code-btn"
+                    :disabled="isCounting"
                     @click="sendSms"
                   >
-                    发送验证码
+                    {{ buttonText }}
                   </button>
                 </div>
               </div>
@@ -139,7 +282,7 @@
           </div>
 
           <div class="terms">
-            <p>欢迎使用数游论坛,您登录即同意</p>
+            <p>欢迎使用数游科技,您登录即同意</p>
             <div class="terms-links">
               <a href="#" class="term-link">《用户协议》</a>
               <span>和</span>
@@ -152,150 +295,19 @@
   </el-dialog>
 </template>
 
-<script setup lang="ts">
-import {ref, computed} from 'vue'
-import {ElMessage} from 'element-plus'
-import {authAuthorize, authSendSms} from '@/api/auth'
-import {useShareStore} from "@/store/modules/share.ts";
-import {useUserStore} from "@/store/modules/user.ts";
-
-interface Props {
-  visible: boolean
-}
-
-interface Emits {
-  (e: 'update:visible', value: boolean): void
-
-  (e: 'login-success', userData: any): void
-}
-
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
-
-const loading = ref(false)
-const loginType = ref<'wechat' | 'phone'>('wechat')
-const qrCodeUrl = ref('')
-
-// 计算对话框样式
-const dialogStyle = computed(() => ({
-  height: '60vh',
-  maxHeight: '60vh',
-  marginTop: '20vh',
-  borderRadius: '16px',
-  boxShadow: 'none'
-}))
-
-const phoneForm = ref({
-  phone: '',
-  code: '',
-})
-
-const aiFeatures = [
-  {name: '游戏攻略', icon: 'i-mdi:gamepad-variant', position: 'top'},
-  {name: '游戏论坛', icon: 'i-mdi:book-open-variant', position: 'bottom-left'},
-  {name: '游戏捏脸', icon: 'i-mdi:face-man', position: 'top-left'},
-  {name: '游戏商城', icon: 'i-mdi:store', position: 'top-right'},
-  {name: '游戏公会', icon: 'i-mdi:account-group', position: 'bottom-right'},
-]
-
-watch(
-  () => props.visible,
-  (newVal) => {
-    console.log("visible =========== newVal:", newVal)
-    if (newVal) {
-      getQrCode()
-    }
-  });
-
-
-const shareStore = useShareStore()
-const userStore = useUserStore()
-
-watch(
-  () => shareStore.code,
-  (newValue) => {
-    alert("code:" + newValue)
-    console.log("accessToken =========== code:", newValue)
-    if (newValue) {
-      userStore.accessToken({
-        code: newValue,
-      }).then(() => {
-        emit('login-success', userStore.userInfo)
-        handleClose() // 登录成功后关闭登录弹窗
-      }).catch((error) => {
-        console.error('微信登录失败:', error)
-        ElMessage.error('微信登录失败，请重试')
-      })
-    }
-  }
-);
-
-const onPhoneSubmit = async (e: Event) => {
-  e.preventDefault()
-  if (!phoneForm.value.phone || !phoneForm.value.code) {
-    ElMessage.error('请填写完整的手机号和验证码')
-    return
-  }
-  loading.value = true
-  await userStore.smsLogin({
-    mobile: phoneForm.value.phone,
-    code: phoneForm.value.code,
-  })
-  emit('login-success', userStore.userInfo)
-  handleClose()
-  loading.value = false
-}
-
-const sendSms = async () => {
-  const phone = phoneForm.value.phone
-  if (!phone) {
-    ElMessage.error('请输入手机号')
-    return
-  }
-  await authSendSms({
-    mobile: phone,
-    templateCode: 'SMS_491995068'
-  })
-  ElMessage.success('验证码已发送')
-}
-
-const handleClose = () => {
-  emit('update:visible', false)
-}
-
-// 获取二维码url,展示二维码图片
-const getQrCode = async () => {
-  loginType.value = 'wechat'
-  try {
-    const response = await authAuthorize({
-      socialType: '01',
-      callBackSuffix: 'local/wechat/callback',
-    })
-    if (response.data) {
-      qrCodeUrl.value = response.data
-      console.log("getQrCode =========== qrCodeUrl:", qrCodeUrl.value)
-    } else {
-      ElMessage.error('获取二维码失败')
-    }
-  } catch (error) {
-    ElMessage.error('获取二维码失败，请重试')
-  }
-}
-</script>
-
 <style>
 /* 全局样式强制覆盖对话框高度 - 使用更高优先级 */
 html body .el-dialog.ai-login-modal {
-  height: 600px !important;
-  max-height: 600px !important;
-  width: 1000px !important;
-  max-width: 1000px !important;
-  border-radius: 16px !important;
-  box-shadow: none !important;
-  border: none !important;
-  background: transparent !important;
+  width: 900px !important;
+  max-width: 900px !important;
+  height: 550px !important;
+  max-height: 550px !important;
   overflow: visible !important;
   outline: none !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
 }
 
 /* 移除所有可能的红色调试框 */
@@ -308,11 +320,28 @@ html body .el-dialog.ai-login-modal {
   box-shadow: none !important;
 }
 
-html body .el-dialog.ai-login-modal .el-dialog__body {
-  height: 600px !important;
-  max-height: 600px !important;
+/* 强制去除iframe相关边框 */
+iframe {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   background: transparent !important;
+}
+
+/* 强制去除二维码相关元素的边框 */
+.qr-container *,
+.qr-code *,
+.code-box * {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+html body .el-dialog.ai-login-modal .el-dialog__body {
+  height: 550px !important;
+  max-height: 550px !important;
   overflow: hidden !important;
+  background: transparent !important;
   border-radius: 16px !important;
 }
 
@@ -325,24 +354,24 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
 }
 
 /* 强制覆盖移动端样式 */
-@media (max-width: 1200px) {
+@media (width <= 1200px) {
   html body .el-dialog.ai-login-modal {
-    height: 500px !important;
-    max-height: 500px !important;
-    width: 90vw !important;
-    max-width: 90vw !important;
+    width: 85vw !important;
+    max-width: 85vw !important;
+    height: 450px !important;
+    max-height: 450px !important;
+    overflow: hidden !important;
+    background: transparent !important;
+    border: none !important;
     border-radius: 16px !important;
     box-shadow: none !important;
-    border: none !important;
-    background: transparent !important;
-    overflow: hidden !important;
   }
 
   html body .el-dialog.ai-login-modal .el-dialog__body {
-    height: 500px !important;
-    max-height: 500px !important;
-    background: transparent !important;
+    height: 450px !important;
+    max-height: 450px !important;
     overflow: hidden !important;
+    background: transparent !important;
     border-radius: 16px !important;
   }
 
@@ -351,23 +380,23 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   html body .el-dialog.ai-login-modal {
-    height: 80vh !important;
-    max-height: 80vh !important;
-    width: 95vw !important;
-    max-width: 95vw !important;
+    width: 90vw !important;
+    max-width: 90vw !important;
+    height: 70vh !important;
+    max-height: 70vh !important;
   }
 
   html body .el-dialog.ai-login-modal .el-dialog__body {
-    height: 80vh !important;
-    max-height: 80vh !important;
+    height: 70vh !important;
+    max-height: 70vh !important;
   }
 }
 </style>
 
 <style scoped>
-.ai-login-modal :deep(.el-dialog) {
+/* .ai-login-modal :deep(.el-dialog) {
   margin: 20vh auto !important;
   height: 600px !important;
   max-width: 1000px !important;
@@ -377,7 +406,7 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
   box-shadow: none !important;
   border: none !important;
   background: transparent !important;
-}
+} */
 
 .ai-login-modal :deep(.el-dialog__header) {
   display: none !important;
@@ -387,608 +416,475 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
   background: transparent !important;
 }
 
-.ai-login-modal :deep(.el-dialog__body) {
+/* .ai-login-modal :deep(.el-dialog__body) {
   padding: 0;
   height: 600px;
   overflow: hidden;
   border-radius: 16px;
-}
+} */
 
 /* 强制覆盖对话框高度 */
 .ai-login-modal :deep(.el-dialog) {
-  height: 600px !important;
-  max-height: 600px !important;
-  width: 1000px !important;
-  max-width: 1000px !important;
+  width: 900px !important;
+  max-width: 900px !important;
+  height: 550px !important;
+  max-height: 550px !important;
+  overflow: hidden !important;
+  border: none !important;
   border-radius: 16px !important;
   box-shadow: none !important;
-  border: none !important;
-  overflow: hidden !important;
 }
 
 .ai-login-modal :deep(.el-dialog__body) {
-  height: 600px !important;
-  max-height: 600px !important;
+  height: 550px !important;
+  max-height: 550px !important;
   overflow: hidden !important;
   border-radius: 16px !important;
 }
 
 .login-page {
+  position: relative;
   display: flex;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%);
   overflow: hidden;
-  position: relative;
-  backdrop-filter: blur(20px);
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%);
   border-radius: 16px;
+  backdrop-filter: blur(20px);
 }
 
 /* 左侧功能展示区 */
 .left-section {
-  flex: 2;
+  position: relative;
   display: flex;
+  flex: 2;
   align-items: flex-start;
   justify-content: center;
-  position: relative;
-  background: linear-gradient(135deg, #1a1a3a 0%, #2d1b69 50%, #4c1d95 100%);
-  position: relative;
+  padding: 2rem 0 5rem;
   overflow: visible;
-  padding: 2rem 0 5rem 0;
+  background: linear-gradient(135deg, #1a1a3a 0%, #2d1b69 50%, #4c1d95 100%);
   border-radius: 16px 0 0 16px;
 }
 
-.left-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
-  radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.4) 0%, transparent 50%),
-  radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%),
-  radial-gradient(circle at 60% 60%, rgba(139, 92, 246, 0.2) 0%, transparent 50%);
-  pointer-events: none;
-  animation: float 6s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-20px) rotate(180deg);
-  }
-}
 
 .content {
-  text-align: center;
-  z-index: 1;
   position: relative;
-  margin-top: 5px;
-  padding-bottom: 1rem;
+  z-index: 1;
+  padding: 2rem 1rem;
+  margin-top: 2rem;
+  text-align: center;
 }
 
 .title {
+  margin-bottom: 0.5rem;
   font-size: 2.5rem;
   font-weight: 800;
   color: white;
-  margin-bottom: 0.5rem;
-  text-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
-  background: linear-gradient(135deg, #ffffff 0%, #a855f7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 30px rgb(255 255 255 / 40%);
+  background: linear-gradient(135deg, #fff 0%, #a855f7 100%);
+  background-clip: text;
   background-clip: text;
   animation: glow 2s ease-in-out infinite alternate;
+  -webkit-text-fill-color: transparent;
 }
 
 @keyframes glow {
   from {
-    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.5));
+    filter: drop-shadow(0 0 10px rgb(168 85 247 / 50%));
   }
+
   to {
-    filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.8));
+    filter: drop-shadow(0 0 20px rgb(168 85 247 / 80%));
   }
 }
 
 .subtitle {
-  font-size: 1.1rem;
-  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 2rem;
+  font-size: 1.1rem;
   font-weight: 300;
+  color: rgb(255 255 255 / 90%);
   letter-spacing: 0.5px;
-}
-
-/* 3D螺旋图形 */
-.spiral-container {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto 0.25rem;
-  position: relative;
-}
-
-.spiral {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  animation: rotate 20s linear infinite;
-}
-
-.ring {
-  position: absolute;
-  border: 3px solid;
-  border-radius: 50%;
-  animation: pulse 3s ease-in-out infinite alternate;
-  box-shadow: 0 0 20px currentColor;
-}
-
-.ring-1 {
-  width: 60px;
-  height: 60px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #8b5cf6;
-  animation-delay: 0s;
-}
-
-.ring-2 {
-  width: 120px;
-  height: 120px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #a855f7;
-  animation-delay: 0.5s;
-}
-
-.ring-3 {
-  width: 180px;
-  height: 180px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #c084fc;
-  animation-delay: 1s;
-}
-
-.ring-4 {
-  width: 240px;
-  height: 240px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #d8b4fe;
-  animation-delay: 1.5s;
-}
-
-.ring-5 {
-  width: 300px;
-  height: 300px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #e9d5ff;
-  animation-delay: 2s;
-}
-
-.ring-6 {
-  width: 360px;
-  height: 360px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  border-color: #f3e8ff;
-  animation-delay: 2.5s;
-}
-
-@keyframes rotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 0.3;
-    box-shadow: 0 0 20px currentColor;
-  }
-  100% {
-    opacity: 1;
-    box-shadow: 0 0 40px currentColor;
-  }
 }
 
 /* AI功能按钮 */
 .ai-features {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
   grid-template-rows: auto auto;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.8rem;
   width: 320px;
-  margin: auto;
-  padding: 1rem;
   max-height: 200px;
+  padding: 1rem;
+  margin: auto;
   overflow: visible;
 }
 
 .feature-btn {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.3rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
   padding: 0.5rem 0.6rem;
-  background: rgba(139, 92, 246, 0.15);
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  border-radius: 16px;
-  color: white;
   font-size: 0.7rem;
   font-weight: 500;
+  color: white;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgb(139 92 246 / 15%);
+  border: 1px solid rgb(139 92 246 / 40%);
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgb(139 92 246 / 20%);
+  opacity: 0;
   backdrop-filter: blur(15px);
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
-  min-height: 80px;
-  justify-content: center;
+  transform: translateY(20px);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fade-in-up 0.6s ease-out forwards;
 }
 
 .feature-btn:hover {
-  background: rgba(139, 92, 246, 0.25);
-  border-color: rgba(139, 92, 246, 0.6);
+  background: rgb(139 92 246 / 25%);
+  border-color: rgb(139 92 246 / 60%);
+  box-shadow: 0 15px 30px rgb(139 92 246 / 40%);
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 15px 30px rgba(139, 92, 246, 0.4);
 }
 
 .feature-icon {
   font-size: 1.2rem;
   color: #a855f7;
-  filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.6));
+  filter: drop-shadow(0 0 8px rgb(168 85 247 / 60%));
 }
 
 /* 网格定位 - 3+2布局 */
-.feature-btn {
-  animation: fadeInUp 0.6s ease-out forwards;
-  opacity: 0;
-  transform: translateY(20px);
-}
-
 .feature-btn:nth-child(1) {
-  grid-column: 1;
   grid-row: 1;
+  grid-column: 1;
   animation-delay: 0.1s;
 }
 
 .feature-btn:nth-child(2) {
-  grid-column: 2;
   grid-row: 1;
+  grid-column: 2;
   animation-delay: 0.2s;
 }
 
 .feature-btn:nth-child(3) {
-  grid-column: 3;
   grid-row: 1;
+  grid-column: 3;
   animation-delay: 0.3s;
 }
 
 .feature-btn:nth-child(4) {
-  grid-column: 1;
   grid-row: 2;
+  grid-column: 1;
   animation-delay: 0.4s;
 }
 
 .feature-btn:nth-child(5) {
-  grid-column: 2;
   grid-row: 2;
+  grid-column: 2;
   animation-delay: 0.5s;
 }
 
-@keyframes fadeInUp {
+.feature-btn:nth-child(6) {
+  grid-row: 2;
+  grid-column: 3;
+  animation-delay: 0.6s;
+}
+
+@keyframes fade-in-up {
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
+
+
 /* 右侧登录面板 */
 .right-section {
-  flex: 1;
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(25px);
   min-width: 400px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0 16px 16px 0;
   overflow: hidden;
+  background: rgb(0 0 0 / 40%);
+  border-left: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 0 16px 16px 0;
+  backdrop-filter: blur(25px);
 }
 
 .login-panel {
-  width: 100%;
-  max-width: 380px;
-  padding: 0.5rem 1rem 0.5rem;
   position: relative;
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 380px;
   height: 100%;
   min-height: auto;
-  justify-content: center;
+  padding: 0.5rem 1rem;
   padding-top: 2rem;
 }
 
 .close-btn {
-  position: fixed;
-  top: 1.5rem;
-  right: 1.5rem;
-  width: 40px;
-  height: 40px;
-  border: none;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  cursor: pointer;
-  border-radius: 50%;
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: white;
+  cursor: pointer;
+  background: rgb(0 0 0 / 60%);
+  border: none;
+  border-radius: 50%;
+  backdrop-filter: blur(15px);
   transition: all 0.3s ease;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.9;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  background: rgb(255 255 255 / 20%);
+  box-shadow: 0 4px 15px rgb(255 255 255 / 25%);
+  transform: scale(1.05);
+  opacity: 1;
 }
 
 .brand {
-  text-align: center;
-  margin-bottom: 0.5rem;
   flex-shrink: 0;
-}
-
-.logo {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 0.75rem;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-  position: relative;
-  overflow: hidden;
-}
-
-.logo::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: shine 3s infinite;
-}
-
-@keyframes shine {
-  0% {
-    transform: translateX(-100%) translateY(-100%) rotate(45deg);
-  }
-  100% {
-    transform: translateX(100%) translateY(100%) rotate(45deg);
-  }
-}
-
-.logo-icon {
-  font-size: 2.2rem;
-  color: white;
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+  margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .brand-name {
-  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+  font-size: 2rem;
   font-weight: 700;
   color: white;
-  margin-bottom: 0.25rem;
-  text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+  text-shadow: 0 0 15px rgb(255 255 255 / 30%);
 }
 
-.brand-slogan {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.7);
-}
 
 .login-tabs {
   display: flex;
-  margin-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 0.25rem;
   flex-shrink: 0;
+  padding: 0.2rem;
+  margin-bottom: 1rem;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
 }
 
 .tab-btn {
+  position: relative;
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 0.8rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgb(255 255 255 / 75%);
+  cursor: pointer;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  border-radius: 8px;
-  font-weight: 500;
+  border-radius: 12px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-btn.active {
   color: white;
-  background: rgba(139, 92, 246, 0.2);
-  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, rgb(139 92 246 / 25%), rgb(168 85 247 / 20%));
+  box-shadow: 0 4px 15px rgb(139 92 246 / 35%);
+  transform: translateY(-1px);
 }
 
 .wechat-login {
-  text-align: center;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
-  flex: 1;
   width: 100%;
-  padding: 1rem 0;
+  min-height: 220px;
+  padding: 1.5rem 0;
+  text-align: center;
 }
 
 .qr-container {
-  margin: 0 auto;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
   width: 100%;
+  margin: 30px auto 0;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .qr-code {
-  width: 200px;
-  height: 200px;
-  margin: 0 auto;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 235px;
+  height: 235px;
+  margin: 0 auto;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
 }
 
 .code-box {
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: hidden;
 }
 
 .code-box iframe {
   width: 100% !important;
   height: 100% !important;
+  border: none !important;
   border-radius: 16px;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  object-fit: contain !important;
 }
 
 .wechat-iframe {
-  border: none;
-  border-radius: 16px;
   width: 100% !important;
   height: 100% !important;
+  border: none !important;
+  border-radius: 16px;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  object-fit: contain !important;
 }
-
 
 .qr-placeholder {
   display: flex;
   flex-direction: column;
+  gap: 0.5rem;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
   height: 100%;
-  gap: 0.5rem;
+  color: rgb(255 255 255 / 60%);
 }
 
 .qr-icon {
-  font-size: 3rem;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.qr-icon {
-  font-size: 3rem;
   margin-bottom: 0.5rem;
+  font-size: 3rem;
+  color: rgb(255 255 255 / 40%);
 }
 
 .qr-instructions {
+  margin-top: 1rem;
   color: white;
   text-align: center;
-  margin-top: 0;
 }
 
 .instruction-item {
   display: flex;
+  gap: 0.6rem;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
   margin-bottom: 0;
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  color: rgb(255 255 255 / 85%);
+  padding: 0.5rem 1rem;
+  background: rgb(255 255 255 / 5%);
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
 }
 
 .wechat-icon {
-  color: #07c160;
   font-size: 1.25rem;
+  color: #07c160;
 }
 
 .get-qr-btn {
-  margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  background: rgba(7, 193, 96, 0.2);
-  border: 1px solid rgba(7, 193, 96, 0.3);
-  border-radius: 6px;
+  margin-top: 0.5rem;
   color: white;
   cursor: pointer;
+  background: rgb(7 193 96 / 20%);
+  border: 1px solid rgb(7 193 96 / 30%);
+  border-radius: 6px;
   transition: all 0.3s ease;
 }
 
 .get-qr-btn:hover {
-  background: rgba(7, 193, 96, 0.3);
-  border-color: rgba(7, 193, 96, 0.5);
+  background: rgb(7 193 96 / 30%);
+  border-color: rgb(7 193 96 / 50%);
 }
 
 .proxy-notice {
   font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgb(255 255 255 / 60%);
 }
 
 .phone-login {
-  color: white;
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: 200px;
   width: 100%;
-  flex: 1;
+  min-height: 200px;
   padding: 0.5rem 0;
+  color: white;
+  margin-top: 10px;
 }
 
 .form-item {
-  margin-bottom: 0.75rem;
   width: 100%;
+  margin-bottom: 1.2rem;
 }
 
 .phone-input,
 .code-input {
   width: 100%;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  color: white;
-  backdrop-filter: blur(15px);
   font-size: 1rem;
+  color: white;
+  background: rgb(255 255 255 / 8%);
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: 12px;
+  backdrop-filter: blur(15px);
   transition: all 0.3s ease;
 }
 
 .phone-input::placeholder,
 .code-input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgb(255 255 255 / 60%);
 }
 
 .phone-input:focus,
 .code-input:focus {
   outline: none;
+  background: rgb(255 255 255 / 12%);
   border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
-  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgb(139 92 246 / 30%);
   transform: translateY(-1px);
 }
 
@@ -1003,54 +899,62 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
 }
 
 .send-code-btn {
-  white-space: nowrap;
-  padding: 14px 18px;
-  background: rgba(139, 92, 246, 0.25);
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  border-radius: 12px;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  width: 108px;
   font-weight: 500;
+  color: white;
+  white-space: nowrap;
+  cursor: pointer;
+  background: rgb(139 92 246 / 25%);
+  border: 1px solid rgb(139 92 246 / 40%);
+  border-radius: 12px;
   backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
 }
 
-.send-code-btn:hover {
-  background: rgba(139, 92, 246, 0.3);
-  border-color: rgba(139, 92, 246, 0.5);
+.send-code-btn:hover:not(:disabled) {
+  background: rgb(139 92 246 / 30%);
+  border-color: rgb(139 92 246 / 50%);
+}
+
+.send-code-btn:disabled {
+  background: rgb(255 255 255 / 10%);
+  border-color: rgb(255 255 255 / 20%);
+  color: rgb(255 255 255 / 50%);
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .login-btn {
+  position: relative;
   width: 100%;
   padding: 16px;
+  overflow: hidden;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   border: none;
   border-radius: 12px;
-  color: white;
-  font-weight: 600;
-  font-size: 1.1rem;
-  cursor: pointer;
+  box-shadow: 0 8px 25px rgb(59 130 246 / 40%);
   transition: all 0.3s ease;
-  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-  position: relative;
-  overflow: hidden;
 }
 
 .login-btn::before {
-  content: '';
   position: absolute;
   top: 0;
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 20%), transparent);
   transition: left 0.5s;
 }
 
 .login-btn:hover:not(:disabled) {
   background: linear-gradient(135deg, #2563eb, #7c3aed);
+  box-shadow: 0 12px 35px rgb(59 130 246 / 60%);
   transform: translateY(-2px);
-  box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6);
 }
 
 .login-btn:hover:not(:disabled)::before {
@@ -1058,24 +962,24 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
 }
 
 .login-btn:disabled {
-  opacity: 0.6;
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .terms {
-  margin-top: 30px;
-  text-align: center;
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.6);
-  width: 100%;
   flex-shrink: 0;
+  width: 100%;
+  margin-top: 30px;
+  font-size: 0.875rem;
+  color: rgb(255 255 255 / 60%);
+  text-align: center;
 }
 
 .terms-links {
   display: flex;
+  gap: 0.25rem;
   align-items: center;
   justify-content: center;
-  gap: 0.25rem;
   margin-top: 0.25rem;
 }
 
@@ -1090,27 +994,27 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
   text-decoration: underline;
 }
 
-@media (max-width: 1200px) {
+@media (width <= 1200px) {
   .ai-login-modal :deep(.el-dialog) {
-    width: 90vw !important;
-    height: 500px !important;
-    margin: 20vh auto !important;
+    width: 85vw !important;
+    height: 450px !important;
+    margin: 15vh auto !important;
+    overflow: hidden !important;
+    border: none !important;
     border-radius: 16px !important;
     box-shadow: none !important;
-    border: none !important;
-    overflow: hidden !important;
   }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
   .ai-login-modal :deep(.el-dialog) {
-    width: 95vw !important;
-    height: 80vh !important;
-    margin: 10vh auto !important;
+    width: 90vw !important;
+    height: 70vh !important;
+    margin: 8vh auto !important;
+    overflow: hidden !important;
+    border: none !important;
     border-radius: 16px !important;
     box-shadow: none !important;
-    border: none !important;
-    overflow: hidden !important;
   }
 
   .login-page {
@@ -1135,21 +1039,16 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
     font-size: 1rem;
   }
 
-  .spiral-container {
-    width: 150px;
-    height: 150px;
-  }
-
   .ai-features {
-    width: 280px;
     gap: 0.6rem;
-    padding: 0.8rem;
+    width: 280px;
     max-height: 180px;
+    padding: 0.8rem;
   }
 
   .feature-btn {
-    font-size: 0.7rem;
     padding: 0.6rem 0.8rem;
+    font-size: 0.7rem;
   }
 
   .login-panel {
@@ -1158,26 +1057,26 @@ html body .el-dialog.ai-login-modal .el-dialog__wrapper {
   }
 
   .qr-code {
-    width: 150px;
-    height: 150px;
+    width: 140px;
+    height: 140px;
   }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
   .title {
     font-size: 1.5rem;
   }
 
   .ai-features {
-    width: 250px;
     gap: 0.5rem;
-    padding: 0.6rem;
+    width: 250px;
     max-height: 160px;
+    padding: 0.6rem;
   }
 
   .feature-btn {
-    font-size: 0.65rem;
     padding: 0.5rem 0.7rem;
+    font-size: 0.65rem;
   }
 }
 </style>

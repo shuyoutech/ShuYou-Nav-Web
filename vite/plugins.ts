@@ -53,8 +53,13 @@ export default function createVitePlugins(mode: string, isBuild = false) {
       ],
       dts: './src/types/auto-imports.d.ts',
       dirs: [
-        './src/store/modules',
-        './src/utils/composables',
+        './src/store/modules/**/*',
+        './src/composables/**/*',
+        './src/ui/components/FaDrawer/index.ts',
+        './src/ui/components/FaModal/index.ts',
+        './src/ui/components/FaLoading/index.ts',
+        './src/ui/components/FaToast/index.ts',
+        './src/ui/components/FaNotification/index.ts',
       ],
     }),
 
@@ -92,6 +97,7 @@ export default function createVitePlugins(mode: string, isBuild = false) {
     // https://github.com/dishait/vite-plugin-vue-meta-layouts
     Layouts({
       defaultLayout: 'index',
+      metaName: 'layouts',
     }),
 
     // https://github.com/hannoeru/vite-plugin-pages
@@ -119,7 +125,7 @@ export default function createVitePlugins(mode: string, isBuild = false) {
     TurboConsole(),
 
     // https://github.com/chengpeiquan/vite-plugin-banner
-    banner(` https://bbs.shuyoutech.com `),
+    banner(` https://nav.shuyoutech.com `),
 
   ]
   return vitePlugins

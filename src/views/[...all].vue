@@ -3,15 +3,15 @@ name: notFound
 meta:
   title: 找不到页面
   constant: true
-  layout: false
+  layouts: false
 </route>
 
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
 
-const settingsStore = useSettingsStore()
-const tabbarStore = useTabbarStore()
+const appSettingsStore = useAppSettingsStore()
+const appTabbarStore = useAppTabbarStore()
 
 const data = ref({
   inter: Number.NaN,
@@ -23,8 +23,8 @@ onBeforeRouteLeave(() => {
 })
 
 onMounted(() => {
-  if (settingsStore.settings.tabbar.enable) {
-    tabbarStore.remove(route.meta.activeMenu || route.fullPath)
+  if (appSettingsStore.settings.topbar.tabbar) {
+    appTabbarStore.remove(route.meta.activeMenu || route.fullPath)
   }
   data.value.inter = window.setInterval(() => {
     data.value.countdown--
@@ -36,13 +36,13 @@ onMounted(() => {
 })
 
 function goBack() {
-  router.push(settingsStore.settings.home.fullPath)
+  router.push(appSettingsStore.settings.app.home.fullPath)
 }
 </script>
 
 <template>
   <div class="absolute left-[50%] top-[50%] flex flex-col items-center justify-between lg-flex-row -translate-x-50% -translate-y-50% lg-gap-12">
-    <FaIcon name="404" class="text-[300px] lg-text-[400px]" />
+    <FaIcon name="app-404" class="text-[300px] lg-text-[400px]" />
     <div class="flex flex-col gap-4">
       <h1 class="m-0 text-6xl font-sans">
         404

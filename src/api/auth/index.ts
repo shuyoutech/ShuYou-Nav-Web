@@ -36,7 +36,7 @@ export function authAuthorize(data: AuthAuthorizeReq): Promise<AxiosResponse<str
  */
 export function authAccessToken(data: AuthAccessTokenReq): Promise<AxiosResponse<AuthAccessTokenRes>> {
   return api({
-    url: '/api/auth/accessToken',
+    url: '/api/auth/token',
     method: 'post',
     data: data
   });
@@ -47,7 +47,7 @@ export function authAccessToken(data: AuthAccessTokenReq): Promise<AxiosResponse
  */
 export function authSendSms(data: AuthSmsSendReq): Promise<AxiosResponse<boolean>> {
   return api({
-    url: '/api/auth/sendSms',
+    url: '/api/auth/send-sms',
     method: 'post',
     data: data
   });
@@ -58,7 +58,7 @@ export function authSendSms(data: AuthSmsSendReq): Promise<AxiosResponse<boolean
  */
 export function authSmsLogin(data: AuthSmsLoginReq): Promise<AxiosResponse<AuthSmsLoginRes>> {
   return api({
-    url: '/api/auth/smsLogin',
+    url: '/api/auth/sms-login',
     method: 'post',
     data: data
   });

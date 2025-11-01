@@ -10,12 +10,12 @@ export interface AuthLoginRes {
 }
 
 export interface AuthAuthorizeReq {
-  socialType: string;
-  callBackSuffix: string
+  type: string;
+  callBack: string
 }
 
 export interface AuthAccessTokenReq {
-  socialType: string;
+  type: string;
   code: string
 }
 

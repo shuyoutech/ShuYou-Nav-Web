@@ -1,12 +1,12 @@
-import {spawn} from 'node:child_process'
+import { spawn } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import * as p from '@clack/prompts'
-import {lookupCollection, lookupCollections} from '@iconify/json'
+import { lookupCollection, lookupCollections } from '@iconify/json'
 import fs from 'fs-extra'
 
 // 拿到全部图标集的原始数据
-const raw = lookupCollections()
+const raw = await lookupCollections()
 
 let lastChoose = fs.readFileSync(path.resolve(process.cwd(), 'src/iconify/index.json'), 'utf-8')
 lastChoose = JSON.parse(lastChoose)
@@ -25,7 +25,7 @@ p.intro('图标集生成工具')
  * (2) src/iconify/data.json     包含多个图标集数据，仅记录图标名
  * (3) public/icons/*-raw.json   多个图标集的原始数据，独立存放，用于离线使用
  */
-const answers = p.group(
+const answers = await p.group(
   {
     collections: () =>
       p.multiselect({
@@ -51,7 +51,10 @@ const answers = p.group(
   },
 )
 
-fs.writeJSON(
+const spinner = p.spinner()
+spinner.start('正在生成图标集...')
+
+await fs.writeJSON(
   path.resolve(process.cwd(), 'src/iconify/index.json'),
   {
     collections: answers.collections,
@@ -60,12 +63,12 @@ fs.writeJSON(
 )
 
 const outputDir = path.resolve(process.cwd(), 'public/icons')
-fs.ensureDir(outputDir)
-fs.emptyDir(outputDir)
+await fs.ensureDir(outputDir)
+await fs.emptyDir(outputDir)
 
 const collectionsMeta: object[] = []
 for (const info of answers.collections) {
-  const setData = lookupCollection(info)
+  const setData = await lookupCollection(info)
 
   collectionsMeta.push({
     prefix: setData.prefix,
@@ -76,11 +79,11 @@ for (const info of answers.collections) {
   const offlineFilePath = path.join(outputDir, `${info}-raw.json`)
 
   if (answers.isOfflineUse) {
-    fs.writeJSON(offlineFilePath, setData)
+    await fs.writeJSON(offlineFilePath, setData)
   }
 }
 
-fs.writeJSON(
+await fs.writeJSON(
   path.resolve(process.cwd(), 'src/iconify/data.json'),
   collectionsMeta,
 )
@@ -101,5 +104,5 @@ eslint.on('close', (code) => {
     p.log.error(`ESLint 执行失败，退出码: ${code}`)
     process.exit(code)
   }
-  p.outro('图标集生成完成！')
+  spinner.stop('图标集生成完成！')
 })

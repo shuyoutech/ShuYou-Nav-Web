@@ -13,6 +13,7 @@ const props = defineProps<{
   variant?: BadgeVariant['variant']
   value: string | number | boolean
   class?: HTMLAttributes['class']
+  badgeClass?: HTMLAttributes['class']
 }>()
 
 const badgeDotVariant = cva(
@@ -64,7 +65,7 @@ const transitionClass = ref({
     <Transition v-bind="transitionClass">
       <div v-if="show" class="absolute h-full w-full">
         <div v-if="value === true" :class="badgeDotVariant({ variant })" />
-        <Badge v-else :variant class="absolute start-[50%] top-0 z-20 whitespace-nowrap px-1.5 py-0 ring-1 ring-primary-foreground -translate-y-[50%] hover:bg-none!">
+        <Badge v-else :variant :class="cn('absolute start-[50%] top-0 z-20 whitespace-nowrap px-1.5 py-0 ring-1 ring-primary-foreground -translate-y-[50%] hover:bg-none!', props.badgeClass)">
           {{ value }}
         </Badge>
       </div>

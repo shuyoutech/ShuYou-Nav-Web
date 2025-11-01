@@ -32,7 +32,6 @@
 
 <script setup lang="ts">
 import Sortable from 'sortablejs'
-import { toast } from 'vue-sonner'
 
 defineOptions({
   name: 'FaStorageBox',
@@ -74,10 +73,10 @@ onMounted(() => {
 function onBeforeClose(action: string, done: () => void) {
   if (action === 'confirm') {
     if (!dialog.value.name) {
-      toast.warning(t('nameEmpty'))
+      faToast.warning(t('nameEmpty'))
     }
     else if (list.value.find(item => item.title === dialog.value.name)) {
-      toast.warning(t('nameExist'))
+      faToast.warning(t('nameExist'))
     }
     else {
       done()

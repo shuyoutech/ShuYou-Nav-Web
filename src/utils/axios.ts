@@ -1,6 +1,4 @@
 import axios from 'axios'
-// import qs from 'qs'
-import {toast} from 'vue-sonner'
 
 // 请求重试配置
 const MAX_RETRY_COUNT = 3 // 最大重试次数
@@ -24,63 +22,42 @@ api.interceptors.request.use(
   (request) => {
     // 全局拦截请求发送前提交的参数
     const userStore = useUserStore()
+    // 检查 token 是否过期
+    if (userStore.isLogin && userStore.isTokenExpired()) {
+      console.warn('Token 已过期，自动登出')
+      userStore.requestLogout()
+      userStore.showLoginModal = true
+      return Promise.reject(new Error('Token 已过期'))
+    }
+
     // 设置请求头
-    if (request.headers && userStore.isLogin) {
+    if (request.headers && userStore.isTokenValid) {
       request.headers.satoken = userStore.token
     }
     return request
-  }, (error: any) => {
-    return Promise.reject(error);
-  }
+  },
+  (error: any) => {
+    return Promise.reject(error)
+  },
 )
-
-// 处理错误信息的函数
-function handleError(error: any) {
-  if (error.code === 401) {
-    useUserStore().requestLogout()
-    throw error
-  }
-
-  let message = error.msg
-  if (message === 'Network Error') {
-    message = '后端网络故障'
-  } else if (message.includes('timeout')) {
-    message = '接口请求超时'
-  } else if (message.includes('Request failed with status code')) {
-    message = `接口${message.substring(message.length - 3)}异常`
-  } else if (error.code === 500 && message.includes('token 无效')) {
-    useUserStore().requestLogout()
-  }
-  toast.error('Error', {
-    description: message,
-  })
-  return Promise.reject(error)
-}
 
 api.interceptors.response.use(
   (response) => {
-    /**
-     * 全局拦截请求发送后返回的数据，如果数据有报错则在这做全局的错误提示
-     * 假设返回数据格式为：{ status: 1, error: '', data: {} }
-     * 规则是当 status 为 1 时表示请求成功，为 0 时表示接口需要登录或者登录状态失效，需要重新登录
-     * 请求出错时 error 会返回错误信息
-     */
-    if (response.status !== 200) {
-      if (response.data.msg !== '') {
-        handleError(response.data).then(() => {
-        })
+    if (response?.status === 200) {
+      if (response.data.code >= 401 && response.data.code <= 403) {
+        useUserStore().requestLogout()
+        useUserStore().showLoginModal = true
         return Promise.reject(response.data)
       }
+      if (response.data.code === 0) {
+        if (response.headers['content-disposition']) {
+          return Promise.resolve(response)
+        }
+      }
+      return Promise.resolve(response.data)
     }
-    if (response.status === 200 && response.data.code === 401) {
-      handleError(response.data).then(() => {
-      })
-      return Promise.reject(response.data)
-    }
-    if (response.headers['content-disposition']) {
-      return Promise.resolve(response)
-    }
-    return Promise.resolve(response.data)
+
+    return Promise.reject(response)
   },
   async (error) => {
     // 获取请求配置
@@ -88,7 +65,8 @@ api.interceptors.response.use(
 
     // 如果配置不存在或未启用重试，则直接处理错误
     if (!config || !config.retry) {
-      return handleError(error)
+      console.error(error)
+      await Promise.reject(error)
     }
 
     // 设置重试次数
@@ -96,7 +74,8 @@ api.interceptors.response.use(
 
     // 判断是否超过重试次数
     if (config.retryCount >= MAX_RETRY_COUNT) {
-      return handleError(error)
+      console.error(error)
+      await Promise.reject(error)
     }
 
     // 重试次数自增

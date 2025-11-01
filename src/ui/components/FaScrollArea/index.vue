@@ -29,7 +29,7 @@ const emits = defineEmits<{
   onScroll: [Event]
 }>()
 
-const settingsStore = useSettingsStore()
+const appSettingsStore = useAppSettingsStore()
 
 const scrollAreaRef = useTemplateRef('scrollAreaRef')
 
@@ -41,7 +41,7 @@ const arrivedState = ref<{
 }>()
 const showMaskStart = computed(() => {
   if (props.horizontal) {
-    if (settingsStore.settings.app.direction === 'ltr') {
+    if (appSettingsStore.langDirection === 'ltr') {
       return !arrivedState.value?.left
     }
     return !arrivedState.value?.right
@@ -50,7 +50,7 @@ const showMaskStart = computed(() => {
 })
 const showMaskEnd = computed(() => {
   if (props.horizontal) {
-    if (settingsStore.settings.app.direction === 'ltr') {
+    if (appSettingsStore.langDirection === 'ltr') {
       return !arrivedState.value?.right
     }
     return !arrivedState.value?.left
@@ -66,11 +66,6 @@ function onWheel(event: WheelEvent) {
   if (props.horizontal) {
     scrollAreaRef.value?.el?.viewportElement?.scrollBy({
       left: event.deltaY || event.detail,
-    })
-  }
-  else {
-    scrollAreaRef.value?.el?.viewportElement?.scrollBy({
-      top: event.deltaY || event.detail,
     })
   }
 }
@@ -124,7 +119,7 @@ defineExpose({
       '--mask-scroll-container-gradient-color': props.gradientColor,
     } : {}"
   >
-    <ScrollArea ref="scrollAreaRef" :class="cn('relative z-0 flex-1', props.contentClass)" :dir="settingsStore.settings.app.direction" :scrollbar="props.scrollbar" :on-scroll="onScroll" :on-wheel="onWheel">
+    <ScrollArea ref="scrollAreaRef" :class="cn('relative z-0 flex-1', props.contentClass)" :dir="appSettingsStore.langDirection" :scrollbar="props.scrollbar" :on-scroll="onScroll" :on-wheel="onWheel">
       <slot />
       <ScrollBar v-if="props.horizontal" orientation="horizontal" :class="{ 'opacity-0 pointer-events-none': !props.scrollbar }" />
     </ScrollArea>

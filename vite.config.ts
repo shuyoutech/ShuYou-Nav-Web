@@ -22,11 +22,9 @@ export default defineConfig(({ mode, command }) => {
       open: true,
       host: true,
       port: 9000,
-      allowedHosts: true,
       proxy: {
         '/proxy': {
           target: env.VITE_APP_API_BASEURL,
-          secure: false,
           changeOrigin: command === 'serve' && env.VITE_OPEN_PROXY === 'true',
           rewrite: path => path.replace(/\/proxy/, ''),
         },
@@ -40,7 +38,6 @@ export default defineConfig(({ mode, command }) => {
     define: {
       __SYSTEM_INFO__: JSON.stringify({
         pkg: {
-          version: pkg.version,
           dependencies: pkg.dependencies,
           devDependencies: pkg.devDependencies,
         },

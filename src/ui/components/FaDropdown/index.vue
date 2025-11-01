@@ -35,7 +35,7 @@ const slots = defineSlots<{
   footer?: () => VNode
 }>()
 
-const settingsStore = useSettingsStore()
+const appSettingsStore = useAppSettingsStore()
 const myItems = computed(() => {
   return props.items.map((item) => {
     return item.filter(v => !v.hide)
@@ -52,7 +52,7 @@ function handleItemClick(item: { handle?: () => void }) {
 </script>
 
 <template>
-  <DropdownMenu :modal="false" :dir="settingsStore.settings.app.direction">
+  <DropdownMenu :modal="false" :dir="appSettingsStore.langDirection">
     <DropdownMenuTrigger as-child>
       <slot />
     </DropdownMenuTrigger>

@@ -2,7 +2,8 @@
   <div class="app-footer">
     <div class="footer-content">
       <p class="copyright">
-        Copyright © 2025 苏州数游科技有限公司 版权所有 苏ICP备2025197988号
+        Copyright © 2025 苏州数游科技有限公司 版权所有
+        <a href="https://beian.miit.gov.cn/" target="_blank">苏ICP备2025197988号</a>
       </p>
     </div>
   </div>
@@ -15,10 +16,7 @@
 <style scoped>
 /* 底部版权信息样式 */
 .app-footer {
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  padding: 20px 0;
-  margin-top: 40px;
+  padding: 10px 0;
 }
 
 .footer-content {
@@ -40,14 +38,13 @@
 
 @media (max-width: 768px) {
   .app-footer {
-    padding: 15px 0;
-    margin-top: 30px;
+    padding: 10px 0;
   }
-  
+
   .footer-content {
     padding: 0 15px;
   }
-  
+
   .copyright {
     font-size: 13px;
   }
@@ -55,14 +52,13 @@
 
 @media (max-width: 480px) {
   .app-footer {
-    padding: 12px 0;
-    margin-top: 20px;
+    padding: 10px 0;
   }
-  
+
   .footer-content {
     padding: 0 10px;
   }
-  
+
   .copyright {
     font-size: 12px;
   }

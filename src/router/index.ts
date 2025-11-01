@@ -1,47 +1,35 @@
-import {createRouter, createWebHistory} from 'vue-router'
-import {useShareStore} from "@/store/modules/share.ts";
+import {createRouter, createWebHistory} from "vue-router"
+import routes from "./routes/index.ts"
+import {memberBindThirdPartyApi} from "@/api/member";
+import {useUserStore} from "@/store/modules/user.ts";
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [
-    {
-      name: "Index",
-      path: "/",
-      meta: {title: "首页"},
-      component: () => import("@/views/index.vue"),
-    },
-    {
-      name: "Home",
-      path: "/home",
-      meta: {title: "首页"},
-      component: () => import("@/views/index.vue"),
-    },
-    {
-      name: "FaceDesign",
-      path: "/face-design",
-      meta: {title: "捏脸专区"},
-      component: () => import("@/views/face-design.vue"),
-    },
-    {
-      name: "FaceUpload",
-      path: "/face-upload",
-      meta: {title: "捏脸上传"},
-      component: () => import("@/views/face-upload.vue"),
-    },
-
-  ],
+  routes,
 })
 
 router.beforeEach((to, _from, next) => {
-  console.log("router =========== request url:", to.path)
   if (to.path === '/wechat/callback') {
-    alert("path====" + to.path)
     const query = to.query
-    const shareStore = useShareStore()
-    shareStore.code = String(query.code ?? '')
-    shareStore.state = String(query.state ?? '')
-    console.log("router ===========  code:", shareStore.code)
-    next('/')
+    console.log("/wechat/callback ============= code:" + query.code)
+    if (query.code) {
+      const userStore = useUserStore()
+      userStore.accessToken(String(query.code))
+      next('/')
+    }
+    return
+  } else if (to.path === '/wechat/bind/callback') {
+    const query = to.query
+    console.log("/wechat/bind/callback ============= code:" + query.code)
+    if (query.code) {
+      memberBindThirdPartyApi(String(query.code)).then((res: any) => {
+        if (res.code === 0) {
+          const userStore = useUserStore()
+          userStore.getMemberInfo()
+          next('/')
+        }
+      })
+    }
     return
   }
   next()

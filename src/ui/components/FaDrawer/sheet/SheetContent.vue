@@ -2,7 +2,7 @@
 import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import type { SheetVariants } from '.'
-import { useScrollLock } from '@vueuse/core'
+import { reactiveOmit, useScrollLock } from '@vueuse/core'
 import { X } from 'lucide-vue-next'
 import {
   DialogClose,
@@ -10,17 +10,18 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { computed } from 'vue'
 import { cn } from '@/utils'
 import { sheetVariants } from '.'
 
 interface SheetContentProps extends DialogContentProps {
-  class?: HTMLAttributes['class']
+  drawerId: string
   open?: boolean
+  zIndex?: number
   side?: SheetVariants['side']
   closable?: boolean
   overlay?: boolean
   overlayBlur?: boolean
+  class?: HTMLAttributes['class']
 }
 
 defineOptions({
@@ -33,11 +34,7 @@ const emits = defineEmits<DialogContentEmits & {
   animationEnd: []
 }>()
 
-const delegatedProps = computed(() => {
-  const { class: _, side, ...delegated } = props
-
-  return delegated
-})
+const delegatedProps = reactiveOmit(props, 'class', 'side')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 
@@ -51,8 +48,6 @@ watch(showOverlay, (val) => {
     isLocked.value = false
   }
 })
-
-const id = inject('DrawerId')
 </script>
 
 <template>
@@ -70,14 +65,20 @@ const id = inject('DrawerId')
     >
       <div
         v-if="showOverlay"
-        :data-drawer-id="id"
-        :class="cn('fixed inset-0 z-2000 data-[state=closed]:animate-out data-[state=open]:animate-in bg-black/50 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0', {
+        :data-drawer-id="props.drawerId"
+        :class="cn('fixed inset-0 data-[state=closed]:animate-out data-[state=open]:animate-in bg-black/50 data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0', {
           'backdrop-blur-sm': props.overlayBlur,
         })"
+        :style="{
+          zIndex: props.zIndex,
+        }"
       />
     </Transition>
     <DialogContent
       :class="cn(sheetVariants({ side }), props.class)"
+      :style="{
+        zIndex: props.zIndex,
+      }"
       v-bind="{ ...forwarded, ...$attrs }"
       @animationend="emits('animationEnd')"
     >

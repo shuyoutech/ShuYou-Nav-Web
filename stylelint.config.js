@@ -48,5 +48,6 @@ export default {
     'node_modules/**/*',
     'dist*/**/*',
     'src/assets/fonts/**/*',
+    'public/tinymce/**/*',
   ],
 }

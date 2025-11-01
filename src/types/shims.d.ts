@@ -11,3 +11,6 @@ declare const __SYSTEM_INFO__: {
   }
   lastBuildTime: string
 }
+
+declare module 'vue-esign'
+declare module '@bytemd/plugin-gfm/lib/locales/zh_Hans.json'

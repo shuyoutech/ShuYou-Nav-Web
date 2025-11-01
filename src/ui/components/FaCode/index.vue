@@ -26,7 +26,7 @@ const props = defineProps<{
   class?: HTMLAttributes['class']
 }>()
 
-const settingsStore = useSettingsStore()
+const appSettingsStore = useAppSettingsStore()
 
 const { t } = useI18n()
 
@@ -40,7 +40,7 @@ const { copy, copied, isSupported } = useClipboard()
     </pre>
     <FaButton
       v-if="isSupported" variant="secondary" :class="cn('border border-light/20 px-2.5 absolute end-3 top-3 opacity-0 transition-opacity group-hover:opacity-100', {
-        'opacity-100': settingsStore.mode === 'mobile',
+        'opacity-100': appSettingsStore.mode === 'mobile',
       })" @click="copy(code)"
     >
       {{ copied ? t('copied') : '' }}

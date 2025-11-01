@@ -1,8 +1,8 @@
 import type { App } from 'vue'
 import ElementPlus from 'element-plus'
-import en from 'element-plus/es/locale/lang/en.mjs'
-import zhCN from 'element-plus/es/locale/lang/zh-cn.mjs'
-import zhTW from 'element-plus/es/locale/lang/zh-tw.mjs'
+import en from 'element-plus/es/locale/lang/en'
+import zhCN from 'element-plus/es/locale/lang/zh-cn'
+import zhTW from 'element-plus/es/locale/lang/zh-tw'
 import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 

@@ -28,7 +28,7 @@ const slots = defineSlots<{
   label?: () => VNode
 }>()
 
-const settingsStore = useSettingsStore()
+const appSettingsStore = useAppSettingsStore()
 const myItems = computed(() => {
   return props.items.map((item) => {
     return item.filter(v => !v.hide)
@@ -45,7 +45,7 @@ function handleItemClick(item: { handle?: () => void }) {
 </script>
 
 <template>
-  <ContextMenu :modal="false" :dir="settingsStore.settings.app.direction">
+  <ContextMenu :modal="false" :dir="appSettingsStore.langDirection">
     <ContextMenuTrigger as-child>
       <slot />
     </ContextMenuTrigger>

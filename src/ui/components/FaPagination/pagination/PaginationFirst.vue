@@ -1,20 +1,16 @@
 <script setup lang="ts">
 import type { PaginationFirstProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
+import { reactiveOmit } from '@vueuse/core'
 import { ChevronsLeft } from 'lucide-vue-next'
 import { PaginationFirst } from 'reka-ui'
-import { computed } from 'vue'
 import { cn } from '@/utils'
 
 const props = withDefaults(defineProps<PaginationFirstProps & { class?: HTMLAttributes['class'] }>(), {
   asChild: true,
 })
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props
-
-  return delegated
-})
+const delegatedProps = reactiveOmit(props, 'class')
 </script>
 
 <template>
