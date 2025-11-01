@@ -97,7 +97,7 @@ const handleLogout = () => {
 const generateWechatQRCode = async () => {
   const response = await authAuthorize({
     type: 'wechat',
-    callBack: '/ai/wechat/bind/callback',
+    callBack: '/nav/wechat/bind/callback',
   })
   if (response.data) {
     qrCodeUrl.value = response.data
