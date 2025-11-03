@@ -3,6 +3,16 @@ import api from "@/utils/axios.ts";
 import type {NavWebsiteQuery, NavWebsiteSaveBo, NavWebsiteUpdateBo, NavWebsiteVo} from "@/api/nav/types.ts";
 
 /**
+ * 网址管理-分类接口
+ */
+export function navWebsiteCategoryApi(type: string): Promise<AxiosResponse> {
+  return api({
+    url: '/nav/website/category/' + type,
+    method: 'post',
+  });
+}
+
+/**
  * 网址管理-分页
  */
 export function navWebsitePageApi(data: PageQuery<NavWebsiteQuery>): Promise<AxiosResponse<PageResult<NavWebsiteVo>>> {

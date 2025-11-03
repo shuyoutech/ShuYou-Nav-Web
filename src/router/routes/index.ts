@@ -6,7 +6,7 @@ const routes: any[] = [
   // 登录页
   {
     path: "/",
-    redirect: "/chat",
+    redirect: "/home/index",
   },
   // 404
   {
@@ -19,275 +19,151 @@ const routes: any[] = [
     },
   },
   {
-    path: '/chat',
-    name: 'Chat',
+    path: '/home',
+    name: 'Home',
     component: () => import('@/layouts/layout.vue'),
-    redirect: '/chat/completions',
+    redirect: '/home/index',
     meta: {
-      title: 'AI对话',
+      title: '首页',
       show: true,
-      icon: 'ri:chat-3-line',
+      icon: 'ri:home-line',
     },
-    children: [
-      {
-        path: 'completions',
-        name: 'ChatCompletions',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '聊天',
-          show: false,
-        },
-      },
-      {
-        path: 'translation',
-        name: 'ChatTranslation',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '翻译',
-          show: false,
-        },
-      },
-      {
-        path: 'math',
-        name: 'ChatMath',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '数学',
-          show: false,
-        },
-      },
-      {
-        path: 'coder',
-        name: 'ChatCoder',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '编程',
-          show: false,
-        },
-      },
-      {
-        path: 'writing',
-        name: 'ChatWriting',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '写作',
-          show: false,
-        },
-      },
-      {
-        path: 'multi-model',
-        name: 'MultiModelChat',
-        component: () => import('@/views/chat/multiModelChat.vue'),
-        meta: {
-          title: '多模型对话',
-          show: false,
-        },
-      },
-    ],
-  },
-  {
-    path: '/image',
-    name: 'Image',
-    component: () => import('@/layouts/layout.vue'),
-    redirect: '/image/text-to-image',
-    meta: {
-      title: 'AI绘画',
-      show: true,
-      icon: 'ri:image-line',
-    },
-    children: [
-      {
-        path: 'text-to-image',
-        name: 'TextToImage',
-        component: () => import('@/views/image/textToImage.vue'),
-        meta: {
-          title: '文生图',
-          show: false,
-        },
-      },
-      {
-        path: 'image-to-image',
-        name: 'ImageToImage',
-        component: () => import('@/views/image/imageToImage.vue'),
-        meta: {
-          title: '图生图',
-          show: false,
-        },
-      },
-      {
-        path: 'understanding',
-        name: 'ImageUnderstanding',
-        component: () => import('@/views/image/imageUnderstand.vue'),
-        meta: {
-          title: '图片理解',
-          show: false,
-        },
-      }
-    ],
-  },
-  {
-    path: '/video',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: 'AI视频',
-      show: true,
-      icon: 'ri:video-line',
-    },
-    redirect: '/video/text-to-video',
-    children: [
-      {
-        path: 'text-to-video',
-        name: 'TextToVideo',
-        component: () => import('@/views/video/textToVideo.vue'),
-        meta: {
-          title: '文生视频',
-          show: false,
-        },
-      },
-      {
-        path: 'image-to-video',
-        name: 'ImageToVideo',
-        component: () => import('@/views/video/imageToVideo.vue'),
-        meta: {
-          title: '图生视频-首帧',
-          show: false,
-        },
-      },
-      {
-        path: 'multi-image-to-video',
-        name: 'MultiImageToVideo',
-        component: () => import('@/views/video/multiImageToVideo.vue'),
-        meta: {
-          title: '图生视频-首尾帧',
-          show: false,
-        },
-      },
-      {
-        path: 'understanding',
-        name: 'VideoUnderstanding',
-        component: () => import('@/views/video/videoUnderstand.vue'),
-        meta: {
-          title: '视频理解',
-          show: false,
-        },
-      },
-      {
-        path: 'lip-sync',
-        name: 'VideoLipSync',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '视频对口型',
-          show: false,
-        },
-      },
-      {
-        path: 'effects',
-        name: 'VideoEffects',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '视频特效',
-          show: false,
-        },
-      },
-      {
-        path: 'upscale',
-        name: 'UpscaleVideo',
-        component: () => import('@/views/chat/index.vue'),
-        meta: {
-          title: '视频升级高清',
-          show: false,
-        },
-      }
-    ],
-  },
-  {
-    path: '/audio',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: 'AI语音',
-      show: true,
-      icon: 'ri:mic-line',
-    },
-    redirect: '/audio/speech',
-    children: [
-      {
-        path: 'speech',
-        name: 'AudioSpeech',
-        component: () => import('@/views/audio/audioSpeech.vue'),
-        meta: {
-          title: '语音合成',
-          show: false,
-        },
-      },
-      {
-        path: 'transcription',
-        name: 'AudioTranscription',
-        component: () => import('@/views/audio/audioTranscription.vue'),
-        meta: {
-          title: '语音识别',
-          show: false,
-        },
-      }
-    ],
-  },
-  {
-    path: '/model',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: '模型',
-      show: true,
-      icon: 'ri:cpu-line',
-    },
-    redirect: '/model/index',
     children: [
       {
         path: 'index',
-        name: 'modelIndex',
-        component: () => import('@/views/model/index.vue'),
+        name: 'HomeIndex',
+        component: () => import('@/views/nav/index.vue'),
         meta: {
-          title: '模型列表',
+          title: '导航首页',
           show: false,
         },
-      }
+      },
     ],
   },
   {
-    path: '/app',
+    path: '/comprehensive',
+    name: 'NavComprehensive',
     component: () => import('@/layouts/layout.vue'),
     meta: {
-      title: '应用',
+      title: '综合网站',
       show: true,
-      icon: 'ri:apps-line',
+      icon: 'i-mdi:web',
     },
-    redirect: '/app/prompt',
     children: [
       {
-        path: 'prompt',
-        name: 'promptIndex',
-        component: () => import('@/views/app/prompt.vue'),
+        path: '',
+        name: 'NavComprehensiveIndex',
+        component: () => import('@/views/nav/index.vue'),
         meta: {
-          title: '提示词',
+          title: '综合网站',
           show: false,
         },
       },
+    ],
+  },
+  {
+    path: '/leisure',
+    name: 'NavLeisure',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: '休闲娱乐',
+      show: true,
+      icon: 'i-mdi:gamepad-variant',
+    },
+    children: [
       {
-        path: 'knowledge',
-        name: 'knowledgeIndex',
-        component: () => import('@/views/app/knowledge.vue'),
+        path: '',
+        name: 'NavLeisureIndex',
+        component: () => import('@/views/nav/index.vue'),
         meta: {
-          title: '知识库',
+          title: '休闲娱乐',
           show: false,
         },
       },
+    ],
+  },
+  {
+    path: '/lifestyle',
+    name: 'NavLifestyle',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: '生活服务',
+      show: true,
+      icon: 'i-mdi:home-heart',
+    },
+    children: [
       {
-        path: 'rag',
-        name: 'ragIndex',
-        component: () => import('@/views/app/rag.vue'),
+        path: '',
+        name: 'NavLifestyleIndex',
+        component: () => import('@/views/nav/index.vue'),
         meta: {
-          title: 'RAG应用',
+          title: '生活服务',
           show: false,
         },
-      }
+      },
+    ],
+  },
+  {
+    path: '/education',
+    name: 'NavEducation',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: '教育文化',
+      show: true,
+      icon: 'i-mdi:school',
+    },
+    children: [
+      {
+        path: '',
+        name: 'NavEducationIndex',
+        component: () => import('@/views/nav/index.vue'),
+        meta: {
+          title: '教育文化',
+          show: false,
+        },
+      },
+    ],
+  },
+  {
+    path: '/industry',
+    name: 'NavIndustry',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: '行业分类',
+      show: true,
+      icon: 'i-mdi:briefcase',
+    },
+    children: [
+      {
+        path: '',
+        name: 'NavIndustryIndex',
+        component: () => import('@/views/nav/index.vue'),
+        meta: {
+          title: '行业分类',
+          show: false,
+        },
+      },
+    ],
+  },
+  {
+    path: '/other',
+    name: 'NavOther',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: '其他',
+      show: true,
+      icon: 'i-mdi:dots-horizontal',
+    },
+    children: [
+      {
+        path: '',
+        name: 'NavOtherIndex',
+        component: () => import('@/views/nav/index.vue'),
+        meta: {
+          title: '其他',
+          show: false,
+        },
+      },
     ],
   },
   {
@@ -336,69 +212,6 @@ const routes: any[] = [
         },
       },
     ],
-  },
-  // 知识库详情页面
-  {
-    path: '/app/knowledge/:id',
-    name: 'KnowledgeDetail',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: '知识库详情',
-      show: false,
-    },
-    children: [
-      {
-        path: '',
-        name: 'KnowledgeDetailContent',
-        component: () => import('@/views/app/knowledge/detail.vue'),
-        meta: {
-          title: '知识库详情',
-          show: false,
-        },
-      }
-    ]
-  },
-  // 知识库搜索页面
-  {
-    path: '/app/knowledge/:id/search',
-    name: 'KnowledgeSearch',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: '知识库搜索',
-      show: false,
-    },
-    children: [
-      {
-        path: '',
-        name: 'KnowledgeSearchContent',
-        component: () => import('@/views/app/knowledge/search.vue'),
-        meta: {
-          title: '知识库搜索',
-          show: false,
-        },
-      }
-    ]
-  },
-  // RAG应用对话页面
-  {
-    path: '/app/rag/chat/:id',
-    name: 'RagAppChat',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: 'RAG应用',
-      show: false,
-    },
-    children: [
-      {
-        path: '',
-        name: 'RagAppChatContent',
-        component: () => import('@/views/app/rag/chat.vue'),
-        meta: {
-          title: 'RAG应用对话',
-          show: false,
-        },
-      }
-    ]
   },
 ]
 
