@@ -2,6 +2,8 @@
 
 数游科技Nav导航系统
 
+https://nav.shuyoutech.com/
+
 # 安装pnpm
 
 npm i pnpm -g

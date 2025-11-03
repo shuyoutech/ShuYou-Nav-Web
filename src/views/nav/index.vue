@@ -224,10 +224,7 @@ watch([() => route.path, () => route.name], ([routePath, routeName]) => {
 
 onMounted(() => {
   initData()
-  if (showCategoryView.value && currentCategory.value) {
-    // 如果通过菜单访问分类，只加载该分类的数据
-    fetchWebsitesByCategory(currentCategory.value.id)
-  }
+  // 分类数据加载已在 watch 中处理，不需要在这里重复调用
 })
 
 // 首页数据
