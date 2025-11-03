@@ -245,6 +245,8 @@ const initData = async () => {
 const loadNavHomeSites = () => {
   loading.value = true
   queryHotDataApi('nav_home').then(({data}) => {
+    // 新格式：两层结构 [{ name: "搜索网站", children: [网站列表] }, ...]
+    // 直接使用返回的数据，不进行重组
     homeSites.value = data || []
   }).catch(() => {
     homeSites.value = []
@@ -317,49 +319,30 @@ const loadNavHomeSites = () => {
       </div>
 
       <!-- 首页卡片式展示 -->
-      <div v-else class="home-cards-section">
+      <div v-else class="home-cards-section home-page">
         <div v-if="loading" class="loading">加载中...</div>
         <div v-else class="cards-container">
-          <!-- 大类卡片 -->
+          <!-- 直接展示子分类，按照接口返回顺序 -->
           <div
-            v-for="mainCategory in homeSites"
-            :key="mainCategory.name"
-            class="main-category-card"
+            v-for="subCategory in homeSites"
+            :key="subCategory.name"
+            class="sub-category-card"
           >
-            <div class="main-category-header">
-              <h2 class="main-category-title">
-                <FaIcon
-                  :name="getCategoryIcon(mainCategory.name)"
-                  :style="{ color: getCategoryColor(mainCategory.name) }"
-                />
-                <span>{{ mainCategory.name }}</span>
-              </h2>
-              <a class="more-link" href="javascript:void(0)">更多></a>
+            <div class="sub-category-header">
+              <h3 class="sub-category-title">{{ subCategory.name }}</h3>
             </div>
-            <div class="sub-categories-wrapper">
-              <!-- 子类卡片 -->
+            <div class="websites-grid">
               <div
-                v-for="subCategory in mainCategory.children"
-                :key="subCategory.name"
-                class="sub-category-card"
+                v-for="website in subCategory.children"
+                :key="website.id"
+                class="website-item"
+                @click="openWebsite(website.url || '')"
               >
-                <div class="sub-category-header">
-                  <h3 class="sub-category-title">{{ subCategory.name }}</h3>
+                <div class="website-icon">
+                  <img v-if="website.icon" :src="website.icon" :alt="website.name" />
+                  <FaIcon v-else name="i-mdi:link" />
                 </div>
-                <div class="websites-grid">
-                  <div
-                    v-for="website in subCategory.children"
-                    :key="website.id"
-                    class="website-item"
-                    @click="openWebsite(website.url || '')"
-                  >
-                    <div class="website-icon">
-                      <img v-if="website.icon" :src="website.icon" :alt="website.name" />
-                      <FaIcon v-else name="i-mdi:link" />
-                    </div>
-                    <div class="website-name">{{ website.name }}</div>
-                  </div>
-                </div>
+                <div class="website-name">{{ website.name }}</div>
               </div>
             </div>
           </div>
@@ -373,8 +356,13 @@ const loadNavHomeSites = () => {
 .nav-home-container {
   width: 100%;
   min-height: calc(100vh - 101px);
-  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+  background: #fff;
   padding: 20px;
+
+  // 首页专用背景
+  .home-page {
+    background: #fff;
+  }
 }
 
 /* 内容区域 */
@@ -382,6 +370,11 @@ const loadNavHomeSites = () => {
   max-width: 1200px;
   margin: 0 auto;
   animation: fadeIn 0.4s ease-in;
+
+  // 首页专用最大宽度
+  .home-page & {
+    max-width: 1400px;
+  }
 }
 
 @keyframes fadeIn {
@@ -405,13 +398,178 @@ const loadNavHomeSites = () => {
   width: 100%;
 }
 
+/* 首页专用样式 */
+.home-page {
+  .cards-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 20px;
+  }
+
+  /* 子类卡片 - 首页样式（直接展示子分类） */
+  .sub-category-card {
+    background: #fafbfc !important;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 0;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+
+    &:hover {
+      background: #ffffff !important;
+      border-color: #cbd5e0 !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    }
+  }
+
+  .sub-category-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    min-width: 80px;
+    flex-shrink: 0;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      right: -7px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1px;
+      height: 16px;
+      background: #e2e8f0;
+    }
+  }
+
+  .sub-category-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    letter-spacing: 0.1px;
+  }
+
+  /* 网站列表 - 首页样式（多列列表形式，紧凑） */
+  .websites-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0;
+    column-gap: 14px;
+    row-gap: 2px;
+    flex: 1;
+  }
+
+  .website-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 3px 4px !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    gap: 6px;
+    min-height: auto;
+    box-shadow: none !important;
+
+    &:hover {
+      background: #f7fafc !important;
+      transform: none;
+      box-shadow: none !important;
+      border: none !important;
+    }
+  }
+
+  .website-icon {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: #f1f5f9;
+    overflow: hidden;
+    user-select: none;
+    transition: all 0.2s ease;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      user-select: none;
+    }
+
+    :deep(.fa-icon) {
+      font-size: 14px;
+      color: #64748b;
+      user-select: none;
+    }
+  }
+
+  .website-item:hover .website-icon {
+    background: #e2e8f0;
+    
+    :deep(.fa-icon) {
+      color: #475569;
+    }
+  }
+
+  .website-name {
+    font-size: 13px;
+    color: #334155;
+    text-align: left;
+    word-break: break-word;
+    line-height: 1.5;
+    font-weight: 400;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    transition: color 0.2s ease;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .website-item:hover .website-name {
+    color: #1e293b;
+    font-weight: 500;
+  }
+
+  .more-link {
+    font-size: 12px;
+    color: #a0aec0;
+    text-decoration: none;
+    transition: color 0.2s ease;
+
+    &:hover {
+      color: #667eea;
+    }
+  }
+}
+
+/* 通用样式（首页和分类页面共用） */
 .cards-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-/* 大类卡片 */
+/* 大类卡片 - 通用样式（分类页面使用） */
 .main-category-card {
   background: #fff;
   border-radius: 0;
@@ -449,14 +607,14 @@ const loadNavHomeSites = () => {
   }
 }
 
-/* 子类容器 */
+/* 子类容器 - 通用样式 */
 .sub-categories-wrapper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 20px;
 }
 
-/* 子类卡片 */
+/* 子类卡片 - 通用样式 */
 .sub-category-card {
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   border-radius: 10px;
@@ -490,8 +648,8 @@ const loadNavHomeSites = () => {
 }
 
 .sub-category-header {
-  margin-bottom: 12px;
-  padding-bottom: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 2px dashed rgba(102, 126, 234, 0.15);
   display: flex;
   align-items: center;
@@ -530,26 +688,11 @@ const loadNavHomeSites = () => {
   }
 }
 
-.more-link {
-  font-size: 13px;
-  color: #a0aec0;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  padding: 4px 8px;
-  border-radius: 4px;
-
-  &:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    transform: translateX(2px);
-  }
-}
-
-/* 网站网格 */
+/* 网站网格 - 通用样式 */
 .websites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
 }
 
 .website-item {
@@ -589,33 +732,31 @@ const loadNavHomeSites = () => {
   border-radius: 6px;
   background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
   overflow: hidden;
-  transition: all 0.3s ease;
+  user-select: none;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    transition: transform 0.3s ease;
+    user-select: none;
   }
 
   :deep(.fa-icon) {
     font-size: 18px;
     color: #667eea;
+    user-select: none;
   }
 }
 
 .website-item:hover .website-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transform: scale(1.08);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
 
   img {
-    transform: scale(1.1);
-    filter: brightness(1.1);
+    filter: none;
   }
 
   :deep(.fa-icon) {
-    color: #fff;
+    color: #667eea;
   }
 }
 
@@ -632,10 +773,27 @@ const loadNavHomeSites = () => {
   white-space: nowrap;
   flex: 1;
   transition: color 0.3s ease;
+  cursor: pointer;
+  user-select: none;
 }
 
 .website-item:hover .website-name {
   color: #667eea;
+}
+
+.more-link {
+  font-size: 13px;
+  color: #a0aec0;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  padding: 4px 8px;
+  border-radius: 4px;
+
+  &:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    transform: translateX(2px);
+  }
 }
 
 .loading {
