@@ -273,7 +273,6 @@ const loadNavHomeSites = () => {
           >
             <div class="sub-category-header">
               <h3 class="sub-category-title">{{ subCategory.name }}</h3>
-              <a class="more-link" href="javascript:void(0)">更多></a>
             </div>
             <div class="websites-grid">
               <div
@@ -298,7 +297,6 @@ const loadNavHomeSites = () => {
               <FaIcon :name="currentCategory.icon" :style="{ color: currentCategory.color }" />
               <span>{{ currentCategory.title }}</span>
             </div>
-            <a class="more-link" href="javascript:void(0)">更多></a>
           </div>
           <div v-if="currentCategory.items && currentCategory.items.length > 0" class="websites-grid">
             <div
