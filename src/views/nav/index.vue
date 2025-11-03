@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { navWebsitePageApi } from '@/api/nav'
-import type { NavWebsiteVo, NavWebsiteQuery } from '@/api/nav/types'
+import {  navWebsiteCategoryApi } from '@/api/nav'
+import type { NavWebsiteVo } from '@/api/nav/types'
 import {queryHotDataApi} from "@/api/api";
 
 const route = useRoute()
@@ -79,10 +79,10 @@ const currentCategory = computed(() => {
   const categoryMap: Record<string, string> = {
     NavComprehensive: 'comprehensive',
     NavComprehensiveIndex: 'comprehensive',
-    NavLeisure: 'leisure',
-    NavLeisureIndex: 'leisure',
-    NavLifestyle: 'lifestyle',
-    NavLifestyleIndex: 'lifestyle',
+    NavLeisure: 'entertainment',
+    NavLeisureIndex: 'entertainment',
+    NavLifestyle: 'life',
+    NavLifestyleIndex: 'life',
     NavEducation: 'education',
     NavEducationIndex: 'education',
     NavIndustry: 'industry',
@@ -92,8 +92,8 @@ const currentCategory = computed(() => {
   }
   // 优先根据路径匹配
   if (routePath === '/comprehensive') return categories.value.find(c => c.id === 'comprehensive') || null
-  if (routePath === '/leisure') return categories.value.find(c => c.id === 'leisure') || null
-  if (routePath === '/lifestyle') return categories.value.find(c => c.id === 'lifestyle') || null
+  if (routePath === '/leisure') return categories.value.find(c => c.id === 'entertainment') || null
+  if (routePath === '/lifestyle') return categories.value.find(c => c.id === 'life') || null
   if (routePath === '/education') return categories.value.find(c => c.id === 'education') || null
   if (routePath === '/industry') return categories.value.find(c => c.id === 'industry') || null
   if (routePath === '/other') return categories.value.find(c => c.id === 'other') || null
@@ -102,26 +102,70 @@ const currentCategory = computed(() => {
   return categories.value.find(c => c.id === categoryId) || null
 })
 
-// 根据分类获取网站列表
+// 分类页面数据（两层结构：子分类 -> 网站列表）
+const categoryPageData = ref<any[]>([])
+
+// 根据分类获取网站列表（通过分类接口）
 async function fetchWebsitesByCategory(categoryId: string) {
   const category = categories.value.find(c => c.id === categoryId)
   if (!category) return
 
   category.loading = true
+  // 清空旧数据
+  categoryPageData.value = []
+  category.items = []
+  
   try {
-    const query: PageQuery<NavWebsiteQuery> = {
-      pageNum: 1,
-      pageSize: 20,
-      data: {
-        category: categoryId,
-      },
+    // 调用分类接口，使用 categoryId 作为 type 参数
+    console.log('调用分类接口，categoryId:', categoryId)
+    const response = await navWebsiteCategoryApi(categoryId)
+    console.log('分类接口响应:', response)
+    
+    // axios 拦截器已经返回了 response.data，所以 response 就是 { code: 0, data: [...], msg: '' }
+    // 如果 response 直接是数组（某些情况下），则直接使用
+    let data: any = null
+    
+    if (Array.isArray(response)) {
+      // 直接返回数组的情况
+      data = response
+    } else if (response?.data && Array.isArray(response.data)) {
+      // 标准格式：{ code: 0, data: [...] }
+      data = response.data
+    } else if (response?.data) {
+      // 其他格式
+      data = response.data
     }
-    const response = await navWebsitePageApi(query)
-    if (response.data?.data) {
-      category.items = response.data.data.records || []
+    
+    console.log('解析后的数据:', data)
+
+    // 接口返回的是两层结构：[{ name: "搜索网站", children: [网站列表] }, ...]
+    if (Array.isArray(data) && data.length > 0) {
+      // 保存树形结构数据用于展示
+      categoryPageData.value = data
+      console.log('设置 categoryPageData:', categoryPageData.value)
+
+      // 扁平化处理，提取所有网站用于备用展示
+      const allWebsites: NavWebsiteVo[] = []
+      data.forEach((subCategory: any) => {
+        if (subCategory.children && Array.isArray(subCategory.children)) {
+          subCategory.children.forEach((website: any) => {
+            if (website.id || website.url) {
+              allWebsites.push(website)
+            }
+          })
+        }
+      })
+      category.items = allWebsites
+      console.log('提取的网站数量:', allWebsites.length)
+    } else {
+      console.warn('返回的数据不是有效的数组或为空:', data)
+      category.items = []
+      categoryPageData.value = []
     }
   } catch (error) {
-    console.error('获取网站列表失败:', error)
+    console.error('获取分类网站列表失败:', error)
+    category.items = []
+    categoryPageData.value = []
   } finally {
     category.loading = false
   }
@@ -163,8 +207,17 @@ function getCategoryColor(name: string) {
 }
 
 // 监听路由变化，加载对应的分类数据
-watch(() => route.name, (routeName) => {
+watch([() => route.path, () => route.name], ([routePath, routeName]) => {
+  // 清空旧数据
+  categoryPageData.value = []
+  
   if (showCategoryView.value && currentCategory.value) {
+    console.log('路由变化，加载分类数据:', {
+      path: routePath,
+      name: routeName,
+      categoryId: currentCategory.value.id,
+      category: currentCategory.value
+    })
     fetchWebsitesByCategory(currentCategory.value.id)
   }
 }, { immediate: true })
@@ -208,7 +261,36 @@ const loadNavHomeSites = () => {
     <div class="content-area">
       <!-- 通过菜单访问的分类视图 -->
       <div v-if="showCategoryView && currentCategory" class="categories-section">
-        <div class="category-block">
+        <div v-if="currentCategory.loading" class="loading">加载中...</div>
+        <!-- 如果有分类数据，使用卡片方式展示（两层结构：子分类 -> 网站列表） -->
+        <div v-else-if="categoryPageData && categoryPageData.length > 0" class="cards-container">
+          <div
+            v-for="subCategory in categoryPageData"
+            :key="subCategory.name"
+            class="sub-category-card"
+          >
+            <div class="sub-category-header">
+              <h3 class="sub-category-title">{{ subCategory.name }}</h3>
+              <a class="more-link" href="javascript:void(0)">更多></a>
+            </div>
+            <div class="websites-grid">
+              <div
+                v-for="website in subCategory.children"
+                :key="website.id"
+                class="website-item"
+                @click="openWebsite(website.url || '')"
+              >
+                <div class="website-icon">
+                  <img v-if="website.icon" :src="website.icon" :alt="website.name" />
+                  <FaIcon v-else name="i-mdi:link" />
+                </div>
+                <div class="website-name">{{ website.name }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 如果没有数据，显示提示 -->
+        <div v-else class="category-block">
           <div class="category-header">
             <div class="category-title">
               <FaIcon :name="currentCategory.icon" :style="{ color: currentCategory.color }" />
@@ -216,8 +298,7 @@ const loadNavHomeSites = () => {
             </div>
             <a class="more-link" href="javascript:void(0)">更多></a>
           </div>
-          <div v-if="currentCategory.loading" class="loading">加载中...</div>
-          <div v-else class="websites-grid">
+          <div v-if="currentCategory.items && currentCategory.items.length > 0" class="websites-grid">
             <div
               v-for="website in currentCategory.items"
               :key="website.id"
@@ -231,6 +312,7 @@ const loadNavHomeSites = () => {
               <div class="website-name">{{ website.name }}</div>
             </div>
           </div>
+          <div v-else class="loading">暂无数据</div>
         </div>
       </div>
 
@@ -291,8 +373,8 @@ const loadNavHomeSites = () => {
 .nav-home-container {
   width: 100%;
   min-height: calc(100vh - 101px);
-  background: #fafbfc;
-  padding: 32px 24px;
+  background: #fff;
+  padding: 20px;
 }
 
 /* 内容区域 */
@@ -326,57 +408,39 @@ const loadNavHomeSites = () => {
 .cards-container {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 16px;
 }
 
 /* 大类卡片 */
 .main-category-card {
   background: #fff;
-  border-radius: 12px;
-  padding: 28px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #e8eaed;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-    transform: translateY(-2px);
-  }
+  border-radius: 0;
+  padding: 12px 0;
+  box-shadow: none;
+  border: none;
+  margin-bottom: 0;
 }
 
 .main-category-header {
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 2px solid #f0f2f5;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ddd;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: relative;
-
-  &::after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 60px;
-    height: 2px;
-    background: linear-gradient(90deg, #667eea, transparent);
-    border-radius: 2px;
-  }
 }
 
 .main-category-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  letter-spacing: -0.3px;
+  gap: 8px;
 
   :deep(.fa-icon) {
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    font-size: 18px;
   }
 }
 
@@ -384,38 +448,49 @@ const loadNavHomeSites = () => {
 .sub-categories-wrapper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 
 /* 子类卡片 */
 .sub-category-card {
-  background: #fafbfc;
+  background: #f5f5f5;
   border-radius: 8px;
   padding: 20px;
   margin-bottom: 0;
-  border: 1px solid #e8eaed;
+  border: none;
   transition: all 0.3s ease;
 
   &:hover {
-    background: #fff;
-    border-color: #d0d7de;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    background: #f5f5f5;
+  }
+}
+
+/* 分类页面直接展示子分类卡片（不需要大类卡片包裹） */
+.categories-section .cards-container > .sub-category-card {
+  background: #f5f5f5;
+  border-radius: 8px;
+  padding: 20px;
+  border: none;
+  margin-bottom: 0;
+
+  &:hover {
+    background: #f5f5f5;
   }
 }
 
 .sub-category-header {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e8eaed;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ddd;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .sub-category-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
   margin: 0;
   display: flex;
   align-items: center;
@@ -445,25 +520,21 @@ const loadNavHomeSites = () => {
 }
 
 .more-link {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #999;
   text-decoration: none;
-  transition: all 0.25s ease;
-  padding: 4px 8px;
-  border-radius: 4px;
+  transition: color 0.2s ease;
 
   &:hover {
-    color: #667eea;
-    background: #f0f4ff;
-    transform: translateX(2px);
+    color: #666;
   }
 }
 
 /* 网站网格 */
 .websites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .website-item {
@@ -472,75 +543,79 @@ const loadNavHomeSites = () => {
   align-items: center;
   padding: 10px 12px;
   background: #fff;
-  border: 1px solid #e8eaed;
-  border-radius: 8px;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
   gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  min-height: 44px;
 
   &:hover {
-    background: #f8f9fa;
-    border-color: #667eea;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.12);
+    background: #fff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 }
 
 .website-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  background: #f8f9fa;
+  border-radius: 4px;
+  background: transparent;
   overflow: hidden;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
 
   img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    transition: transform 0.25s ease;
+    transition: transform 0.2s ease;
   }
 
   :deep(.fa-icon) {
     font-size: 20px;
-    color: #667eea;
+    color: #666;
   }
 }
 
 .website-item:hover .website-icon {
-  background: #f0f4ff;
   transform: scale(1.05);
 
   img {
-    transform: scale(1.1);
+    transform: scale(1.05);
+  }
+
+  :deep(.fa-icon) {
+    color: #333;
   }
 }
 
 .website-name {
-  font-size: 14px;
-  color: #1a1a1a;
+  font-size: 13px;
+  color: #333;
   text-align: left;
   word-break: break-word;
-  line-height: 1.5;
-  font-weight: 500;
+  line-height: 1.4;
+  font-weight: 400;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
-  transition: color 0.25s ease;
 }
 
 .website-item:hover .website-name {
-  color: #667eea;
+  color: #333;
 }
 
 .loading {

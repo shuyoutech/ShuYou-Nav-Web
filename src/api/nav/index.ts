@@ -5,7 +5,7 @@ import type {NavWebsiteQuery, NavWebsiteSaveBo, NavWebsiteUpdateBo, NavWebsiteVo
 /**
  * 网址管理-分类接口
  */
-export function navWebsiteCategoryApi(type: string): Promise<AxiosResponse> {
+export function navWebsiteCategoryApi<T = any>(type: string): Promise<AxiosResponse<T[]>> {
   return api({
     url: '/nav/website/category/' + type,
     method: 'post',
