@@ -39,6 +39,8 @@ function getIconClass(path: string) {
       return `${baseClass} ${isActive ? 'text-indigo-600' : 'text-indigo-500 hover:text-indigo-600'}`
     case '/app':
       return `${baseClass} ${isActive ? 'text-orange-600' : 'text-orange-500 hover:text-orange-600'}`
+    case '/custom':
+      return `${baseClass} ${isActive ? 'text-purple-600' : 'text-purple-500 hover:text-purple-600'}`
     case '/settings':
       return `${baseClass} ${isActive ? 'text-gray-600' : 'text-gray-500 hover:text-gray-600'}`
     default:

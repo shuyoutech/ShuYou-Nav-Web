@@ -146,21 +146,21 @@ const routes: any[] = [
     ],
   },
   {
-    path: '/other',
-    name: 'NavOther',
+    path: '/custom',
+    name: 'NavCustom',
     component: () => import('@/layouts/layout.vue'),
     meta: {
-      title: '其他',
+      title: '我的导航',
       show: true,
-      icon: 'i-mdi:dots-horizontal',
+      icon: 'i-mdi:bookmark-multiple',
     },
     children: [
       {
         path: '',
-        name: 'NavOtherIndex',
+        name: 'NavCustomIndex',
         component: () => import('@/views/nav/index.vue'),
         meta: {
-          title: '其他',
+          title: '我的导航',
           show: false,
         },
       },

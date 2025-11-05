@@ -1,82 +1,25 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
-import {  navWebsiteCategoryApi } from '@/api/nav'
-import type { NavWebsiteVo } from '@/api/nav/types'
-import {queryHotDataApi} from "@/api/api";
+import { ElTree } from 'element-plus'
+import { navWebsiteCategoryApi, navCustomCategoryTreeApi, navCustomWebsiteApi } from '@/api/nav'
+import type { NavWebsiteVo, NavCustomCategoryVo, NavCustomWebsiteVo } from '@/api/nav/types'
+import { queryHotDataApi } from '@/api/api'
 
 const route = useRoute()
 
-// 分类配置（对应菜单：综合网站、休闲娱乐、生活服务、教育文化、行业分类、其他）
-const categories = ref([
-  {
-    id: 'comprehensive',
-    title: '综合网站',
-    icon: 'i-mdi:web',
-    color: '#667eea',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-  {
-    id: 'entertainment',
-    title: '休闲娱乐',
-    icon: 'i-mdi:gamepad-variant',
-    color: '#f093fb',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-  {
-    id: 'life',
-    title: '生活服务',
-    icon: 'i-mdi:home',
-    color: '#4ecdc4',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-  {
-    id: 'education',
-    title: '教育文化',
-    icon: 'i-mdi:school',
-    color: '#45b7d1',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-  {
-    id: 'industry',
-    title: '行业分类',
-    icon: 'i-mdi:briefcase',
-    color: '#f093fb',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-  {
-    id: 'other',
-    title: '其他',
-    icon: 'i-mdi:dots-horizontal',
-    color: '#95a5a6',
-    items: [] as NavWebsiteVo[],
-    loading: false,
-  },
-])
-
-
-
-// 是否显示分类内容（通过菜单访问时）
-const showCategoryView = computed(() => {
-  const routeName = route.name as string
-  const routePath = route.path
-  return ['NavComprehensive', 'NavComprehensiveIndex', 'NavLeisure', 'NavLeisureIndex',
-          'NavLifestyle', 'NavLifestyleIndex', 'NavEducation', 'NavEducationIndex',
-          'NavIndustry', 'NavIndustryIndex', 'NavOther', 'NavOtherIndex'].includes(routeName) ||
-         ['/comprehensive', '/leisure', '/lifestyle', '/education', '/industry', '/other'].includes(routePath)
-})
-
-// 当前显示的分类（通过菜单访问时）
-const currentCategory = computed(() => {
-  if (!showCategoryView.value) return null
-  const routeName = route.name as string
-  const routePath = route.path
-  const categoryMap: Record<string, string> = {
+// 路由配置常量
+const ROUTE_CONFIG = {
+  categoryRouteNames: [
+    'NavComprehensive', 'NavComprehensiveIndex',
+    'NavLeisure', 'NavLeisureIndex',
+    'NavLifestyle', 'NavLifestyleIndex',
+    'NavEducation', 'NavEducationIndex',
+    'NavIndustry', 'NavIndustryIndex',
+    'NavCustom', 'NavCustomIndex',
+  ],
+  categoryPaths: ['/comprehensive', '/leisure', '/lifestyle', '/education', '/industry', '/custom'],
+  categoryMap: {
     NavComprehensive: 'comprehensive',
     NavComprehensiveIndex: 'comprehensive',
     NavLeisure: 'entertainment',
@@ -87,26 +30,401 @@ const currentCategory = computed(() => {
     NavEducationIndex: 'education',
     NavIndustry: 'industry',
     NavIndustryIndex: 'industry',
-    NavOther: 'other',
-    NavOtherIndex: 'other',
-  }
-  // 优先根据路径匹配
-  if (routePath === '/comprehensive') return categories.value.find(c => c.id === 'comprehensive') || null
-  if (routePath === '/leisure') return categories.value.find(c => c.id === 'entertainment') || null
-  if (routePath === '/lifestyle') return categories.value.find(c => c.id === 'life') || null
-  if (routePath === '/education') return categories.value.find(c => c.id === 'education') || null
-  if (routePath === '/industry') return categories.value.find(c => c.id === 'industry') || null
-  if (routePath === '/other') return categories.value.find(c => c.id === 'other') || null
+    NavCustom: 'custom',
+    NavCustomIndex: 'custom',
+  },
+  pathToCategoryId: {
+    '/comprehensive': 'comprehensive',
+    '/leisure': 'entertainment',
+    '/lifestyle': 'life',
+    '/education': 'education',
+    '/industry': 'industry',
+    '/custom': 'custom',
+  },
+} as const
 
-  const categoryId = categoryMap[routeName]
-  return categories.value.find(c => c.id === categoryId) || null
+// 分类配置
+interface CategoryItem {
+  id: string
+  title: string
+  icon: string
+  color: string
+  items: NavWebsiteVo[]
+  loading: boolean
+}
+
+const categories = ref<CategoryItem[]>([
+  {
+    id: 'comprehensive',
+    title: '综合网站',
+    icon: 'i-mdi:web',
+    color: '#667eea',
+    items: [],
+    loading: false,
+  },
+  {
+    id: 'entertainment',
+    title: '休闲娱乐',
+    icon: 'i-mdi:gamepad-variant',
+    color: '#f093fb',
+    items: [],
+    loading: false,
+  },
+  {
+    id: 'life',
+    title: '生活服务',
+    icon: 'i-mdi:home',
+    color: '#4ecdc4',
+    items: [],
+    loading: false,
+  },
+  {
+    id: 'education',
+    title: '教育文化',
+    icon: 'i-mdi:school',
+    color: '#45b7d1',
+    items: [],
+    loading: false,
+  },
+  {
+    id: 'industry',
+    title: '行业分类',
+    icon: 'i-mdi:briefcase',
+    color: '#f093fb',
+    items: [],
+    loading: false,
+  },
+  {
+    id: 'custom',
+    title: '我的导航',
+    icon: 'i-mdi:dots-horizontal',
+    color: '#95a5a6',
+    items: [],
+    loading: false,
+  },
+])
+
+// 工具函数：统一处理API响应数据
+function extractApiData(response: any): any[] | null {
+  if (Array.isArray(response)) {
+    return response
+  }
+  if (response?.data && Array.isArray(response.data)) {
+    return response.data
+  }
+  if (response?.data) {
+    return Array.isArray(response.data) ? response.data : null
+  }
+  return null
+}
+
+// 是否显示分类内容（通过菜单访问时）
+const showCategoryView = computed(() => {
+  const routeName = route.name as string
+  const routePath = route.path
+  return (
+    ROUTE_CONFIG.categoryRouteNames.includes(routeName as any) ||
+    ROUTE_CONFIG.categoryPaths.includes(routePath as any)
+  )
 })
 
+// 是否是自定义导航（我的导航）
+const isCustomNav = computed(() => {
+  const routeName = route.name as string
+  const routePath = route.path
+  return routeName === 'NavCustom' || routeName === 'NavCustomIndex' || routePath === '/custom'
+})
+
+// 当前显示的分类（通过菜单访问时）
+const currentCategory = computed(() => {
+  if (!showCategoryView.value) return null
+
+  const routePath = route.path as keyof typeof ROUTE_CONFIG.pathToCategoryId
+  const routeName = route.name as keyof typeof ROUTE_CONFIG.categoryMap
+
+  // 优先根据路径匹配
+  const categoryIdFromPath = ROUTE_CONFIG.pathToCategoryId[routePath]
+  if (categoryIdFromPath) {
+    return categories.value.find(c => c.id === categoryIdFromPath) || null
+  }
+
+  // 根据路由名称匹配
+  const categoryIdFromName = ROUTE_CONFIG.categoryMap[routeName]
+  if (categoryIdFromName) {
+    return categories.value.find(c => c.id === categoryIdFromName) || null
+  }
+
+  return null
+})
+
+// 子分类数据结构
+interface SubCategoryData {
+  name: string
+  children: NavWebsiteVo[]
+}
+
 // 分类页面数据（两层结构：子分类 -> 网站列表）
-const categoryPageData = ref<any[]>([])
+const categoryPageData = ref<SubCategoryData[]>([])
+
+// 自定义导航相关数据
+// 树形节点接口定义（接口返回的原始格式）
+interface ApiTreeNode {
+  value: string
+  label: string
+  parentId: string
+  sort: number
+  metadata: {
+    level: number
+    rootId: string
+    icon: string
+    name: string
+    id: string
+    sort: number
+    userName: string
+    userId: string
+    parentId: string
+  }
+  children?: ApiTreeNode[]
+}
+
+// Element Tree 需要的节点格式
+interface ElTreeNode {
+  id: string
+  label: string
+  icon?: string
+  metadata?: ApiTreeNode['metadata']
+  level?: number // 添加层级信息
+  children?: ElTreeNode[]
+}
+
+// 保存原始树形结构（用于查找）
+const customCategoryTreeRaw = ref<ApiTreeNode[]>([])
+// Element Tree 组件需要的数据格式
+const customCategoryTree = ref<ElTreeNode[]>([])
+const customWebsites = ref<NavCustomWebsiteVo[]>([])
+const customWebsitesGrouped = ref<SubCategoryData[]>([]) // 按分类分组的数据
+const selectedCategoryId = ref<string | undefined>(undefined)
+const customLoading = ref(false)
+const treeContainerRef = ref<HTMLElement | null>(null)
+const treeRef = ref<InstanceType<typeof ElTree> | null>(null)
+const defaultExpandedKeys = ref<string[]>([]) // Element Tree 默认展开的节点
+
+// 将接口返回的数据转换为 Element Tree 需要的格式
+function convertToElTreeData(apiNodes: ApiTreeNode[]): ElTreeNode[] {
+  return apiNodes.map((node) => {
+    const elNode: ElTreeNode = {
+      id: node.metadata?.id || node.value,
+      label: node.metadata?.name || node.label,
+      icon: node.metadata?.icon,
+      metadata: node.metadata,
+      level: node.metadata?.level || 1, // 保存层级信息
+    }
+    
+    if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+      elNode.children = convertToElTreeData(node.children)
+    }
+    
+    return elNode
+  })
+}
+
+// 收集所有一级节点的ID（用于默认展开）
+function collectFirstLevelIds(nodes: ApiTreeNode[]): string[] {
+  const ids: string[] = []
+  nodes.forEach((node) => {
+    if (node.metadata && node.metadata.level === 1) {
+      ids.push(node.metadata.id)
+    }
+  })
+  return ids
+}
+
+// 加载自定义分类树
+async function fetchCustomCategoryTree() {
+  try {
+    const response = await navCustomCategoryTreeApi({})
+    const data = extractApiData(response)
+
+    if (Array.isArray(data) && data.length > 0) {
+      // 保存原始数据
+      customCategoryTreeRaw.value = data as ApiTreeNode[]
+      // 转换为 Element Tree 格式
+      customCategoryTree.value = convertToElTreeData(data)
+      // 设置默认展开的节点（一级节点）
+      defaultExpandedKeys.value = collectFirstLevelIds(data)
+    } else {
+      customCategoryTree.value = []
+      customCategoryTreeRaw.value = []
+      defaultExpandedKeys.value = []
+    }
+  } catch (error) {
+    console.error('获取自定义分类树失败:', error)
+    customCategoryTree.value = []
+    customCategoryTreeRaw.value = []
+    defaultExpandedKeys.value = []
+  }
+}
+
+// 递归查找分类节点（在原始数据中查找）
+function findCategoryNode(nodes: ApiTreeNode[], categoryId: string): ApiTreeNode | null {
+  for (const node of nodes) {
+    if (node.metadata && node.metadata.id === categoryId) {
+      return node
+    }
+    if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+      const found = findCategoryNode(node.children, categoryId)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+// Element Tree 节点点击事件
+function handleNodeClick(data: ElTreeNode) {
+  if (data.id) {
+    scrollToCategory(data.id)
+  }
+}
+
+// 计算元素相对于滚动容器的位置
+function getOffsetTopRelativeToContainer(element: HTMLElement, container: HTMLElement): number {
+  // 使用 getBoundingClientRect 精确计算（这个方法最可靠）
+  const elementRect = element.getBoundingClientRect()
+  const containerRect = container.getBoundingClientRect()
+  const containerScrollTop = container.scrollTop
+  
+  // 元素相对于视口的位置 - 容器相对于视口的位置 + 容器当前的滚动位置
+  // 这样得到的就是元素在容器内容区域中的绝对位置
+  return elementRect.top - containerRect.top + containerScrollTop
+}
+
+// 定位到右侧对应的分类列表
+function scrollToCategory(categoryId: string) {
+  // 更新选中状态
+  selectedCategoryId.value = categoryId
+
+  // 定位到右侧对应的分类卡片
+  nextTick(() => {
+    setTimeout(() => {
+      // 根据分类ID查找右侧对应的分类卡片（在原始数据中查找）
+      const categoryNode = findCategoryNode(customCategoryTreeRaw.value, categoryId)
+      if (categoryNode && categoryNode.metadata) {
+        const categoryName = categoryNode.metadata.name
+        // 在右侧网站列表中查找对应的分类卡片
+        const rightCard = document.querySelector(`[data-right-category-name="${categoryName}"]`) as HTMLElement
+        if (rightCard) {
+          // 获取右侧滚动容器
+          const rightContainer = rightCard.closest('.custom-websites-list') as HTMLElement
+          if (rightContainer) {
+            // 计算卡片相对于容器的位置
+            const cardOffsetTop = getOffsetTopRelativeToContainer(rightCard, rightContainer)
+            // 获取容器的 padding-top
+            const containerPadding = parseInt(getComputedStyle(rightContainer).paddingTop) || 24
+            
+            // 滚动到顶部位置（卡片顶部对齐容器内容区域顶部）
+            const scrollTop = cardOffsetTop - containerPadding
+            
+            rightContainer.scrollTo({
+              top: Math.max(0, scrollTop), // 确保不会滚动到负数
+              behavior: 'smooth'
+            })
+          } else {
+            // 如果没有找到容器，使用默认的 scrollIntoView
+            rightCard.scrollIntoView({
+              behavior: 'smooth',
+              block: 'start',
+              inline: 'nearest'
+            })
+          }
+          
+          // 添加高亮效果
+          rightCard.classList.add('highlight-category')
+          setTimeout(() => {
+            rightCard.classList.remove('highlight-category')
+          }, 2000)
+        }
+      }
+    }, 150) // 增加延迟，确保DOM完全渲染
+  })
+}
+
+// 加载自定义网址列表
+async function fetchCustomWebsites(categoryId?: string) {
+  // 如果点击的是当前已选中的分类，不重新加载
+  if (selectedCategoryId.value === categoryId && customWebsitesGrouped.value.length > 0) {
+    return
+  }
+
+  // 先更新选中状态，让UI立即响应
+  selectedCategoryId.value = categoryId
+
+  try {
+    // 延迟显示loading，如果数据加载很快就不显示loading
+    const loadingTimeout = setTimeout(() => {
+      customLoading.value = true
+    }, 150)
+
+    const response = await navCustomWebsiteApi({ categoryId })
+    const data = extractApiData(response)
+
+    // 清除loading定时器
+    clearTimeout(loadingTimeout)
+    customLoading.value = false
+
+    if (Array.isArray(data) && data.length > 0) {
+      // 接口返回格式：[{ id, name, icon, children: [...] }, ...]
+      // 转换为 SubCategoryData 格式用于展示
+      customWebsitesGrouped.value = data.map((item: any) => ({
+        name: item.name || '',
+        children: Array.isArray(item.children) ? item.children : [],
+      }))
+      // 扁平化所有网站用于备用
+      customWebsites.value = data.flatMap((item: any) => 
+        Array.isArray(item.children) ? item.children : []
+      )
+    } else {
+      customWebsitesGrouped.value = []
+      customWebsites.value = []
+    }
+  } catch (error) {
+    console.error('获取自定义网址列表失败:', error)
+    customWebsitesGrouped.value = []
+    customWebsites.value = []
+    customLoading.value = false
+  }
+}
+
+// 扁平化处理分类数据，提取所有网站
+function flattenCategoryData(data: SubCategoryData[]): NavWebsiteVo[] {
+  const allWebsites: NavWebsiteVo[] = []
+  data.forEach((subCategory) => {
+    if (subCategory.children && Array.isArray(subCategory.children)) {
+      subCategory.children.forEach((website) => {
+        if (website.id || website.url) {
+          allWebsites.push(website)
+        }
+      })
+    }
+  })
+  return allWebsites
+}
 
 // 根据分类获取网站列表（通过分类接口）
 async function fetchWebsitesByCategory(categoryId: string) {
+  // 如果是自定义导航，使用特殊处理
+  if (categoryId === 'custom') {
+    customLoading.value = true
+    try {
+      await Promise.all([
+        fetchCustomCategoryTree(),
+        fetchCustomWebsites(), // 默认不传 categoryId，获取所有分类的网站
+      ])
+    } finally {
+      customLoading.value = false
+    }
+    return
+  }
+
   const category = categories.value.find(c => c.id === categoryId)
   if (!category) return
 
@@ -114,51 +432,18 @@ async function fetchWebsitesByCategory(categoryId: string) {
   // 清空旧数据
   categoryPageData.value = []
   category.items = []
-  
+
   try {
-    // 调用分类接口，使用 categoryId 作为 type 参数
-    console.log('调用分类接口，categoryId:', categoryId)
     const response = await navWebsiteCategoryApi(categoryId)
-    console.log('分类接口响应:', response)
-    
-    // axios 拦截器已经返回了 response.data，所以 response 就是 { code: 0, data: [...], msg: '' }
-    // 如果 response 直接是数组（某些情况下），则直接使用
-    let data: any = null
-    
-    if (Array.isArray(response)) {
-      // 直接返回数组的情况
-      data = response
-    } else if (response?.data && Array.isArray(response.data)) {
-      // 标准格式：{ code: 0, data: [...] }
-      data = response.data
-    } else if (response?.data) {
-      // 其他格式
-      data = response.data
-    }
-    
-    console.log('解析后的数据:', data)
+    const data = extractApiData(response)
 
     // 接口返回的是两层结构：[{ name: "搜索网站", children: [网站列表] }, ...]
     if (Array.isArray(data) && data.length > 0) {
       // 保存树形结构数据用于展示
       categoryPageData.value = data
-      console.log('设置 categoryPageData:', categoryPageData.value)
-
       // 扁平化处理，提取所有网站用于备用展示
-      const allWebsites: NavWebsiteVo[] = []
-      data.forEach((subCategory: any) => {
-        if (subCategory.children && Array.isArray(subCategory.children)) {
-          subCategory.children.forEach((website: any) => {
-            if (website.id || website.url) {
-              allWebsites.push(website)
-            }
-          })
-        }
-      })
-      category.items = allWebsites
-      console.log('提取的网站数量:', allWebsites.length)
+      category.items = flattenCategoryData(data)
     } else {
-      console.warn('返回的数据不是有效的数组或为空:', data)
       category.items = []
       categoryPageData.value = []
     }
@@ -171,88 +456,74 @@ async function fetchWebsitesByCategory(categoryId: string) {
   }
 }
 
-// 打开网址
+// 打开网址（优化URL处理）
 function openWebsite(url: string) {
-  if (url && !url.startsWith('http')) {
-    url = `https://${url}`
-  }
-  window.open(url, '_blank')
-}
+  if (!url) return
 
-// 获取分类图标
-function getCategoryIcon(name: string) {
-  const iconMap: Record<string, string> = {
-    '综合网站': 'i-mdi:web',
-    '休闲娱乐': 'i-mdi:gamepad-variant',
-    '生活服务': 'i-mdi:home-heart',
-    '教育文化': 'i-mdi:school',
-    '行业分类': 'i-mdi:briefcase',
-    '其他': 'i-mdi:dots-horizontal',
+  let finalUrl = url.trim()
+  if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+    finalUrl = `https://${finalUrl}`
   }
-  return iconMap[name] || 'i-mdi:web'
-}
 
-// 获取分类颜色
-function getCategoryColor(name: string) {
-  // 根据图片，综合网站、休闲娱乐等用紫色，购物等用红色
-  const purpleCategories = ['综合网站', '休闲娱乐']
-  const redCategories = ['生活服务']
-
-  if (purpleCategories.includes(name)) {
-    return '#764ba2'
-  } else if (redCategories.includes(name)) {
-    return '#ff6b6b'
+  try {
+    window.open(finalUrl, '_blank', 'noopener,noreferrer')
+  } catch (error) {
+    console.error('打开网址失败:', error)
   }
-  return '#667eea'
 }
 
 // 监听路由变化，加载对应的分类数据
-watch([() => route.path, () => route.name], ([routePath, routeName]) => {
-  // 清空旧数据
-  categoryPageData.value = []
-  
-  if (showCategoryView.value && currentCategory.value) {
-    console.log('路由变化，加载分类数据:', {
-      path: routePath,
-      name: routeName,
-      categoryId: currentCategory.value.id,
-      category: currentCategory.value
-    })
-    fetchWebsitesByCategory(currentCategory.value.id)
-  }
-}, { immediate: true })
+watch(
+  [() => route.path, () => route.name],
+  () => {
+    // 清空旧数据
+    categoryPageData.value = []
 
-onMounted(() => {
-  initData()
-  // 分类数据加载已在 watch 中处理，不需要在这里重复调用
-})
+    if (showCategoryView.value && currentCategory.value) {
+      fetchWebsitesByCategory(currentCategory.value.id)
+    }
+  },
+  { immediate: true }
+)
 
 // 首页数据
-const homeSites = ref<any[]>([])
+const homeSites = ref<SubCategoryData[]>([])
 const loading = ref(false)
 
+// 加载首页导航数据
+function loadNavHomeSites() {
+  loading.value = true
+  queryHotDataApi('nav_home')
+    .then(({ data }) => {
+      // 新格式：两层结构 [{ name: "搜索网站", children: [网站列表] }, ...]
+      // 直接使用返回的数据，不进行重组
+      homeSites.value = Array.isArray(data) ? data : []
+    })
+    .catch((error) => {
+      console.error('加载首页导航数据失败:', error)
+      homeSites.value = []
+    })
+    .finally(() => {
+      loading.value = false
+    })
+}
+
 // 初始化数据
-const initData = async () => {
+function initData() {
   if (!showCategoryView.value) {
     // 只在首页加载数据
     loadNavHomeSites()
   }
 }
 
-const loadNavHomeSites = () => {
-  loading.value = true
-  queryHotDataApi('nav_home').then(({data}) => {
-    // 新格式：两层结构 [{ name: "搜索网站", children: [网站列表] }, ...]
-    // 直接使用返回的数据，不进行重组
-    homeSites.value = data || []
-  }).catch(() => {
-    homeSites.value = []
-  }).finally(() => {
-    loading.value = false
-  })
-}
+onMounted(() => {
+  initData()
+  // 分类数据加载已在 watch 中处理，不需要在这里重复调用
+})
+
 
 </script>
+
 
 <template>
   <div class="nav-home-container">
@@ -260,60 +531,158 @@ const loadNavHomeSites = () => {
     <div class="content-area">
       <!-- 通过菜单访问的分类视图 -->
       <div v-if="showCategoryView && currentCategory" class="categories-section">
-        <div v-if="currentCategory.loading" class="loading">加载中...</div>
-        <!-- 如果有分类数据，使用卡片方式展示（两层结构：子分类 -> 网站列表） -->
-        <div v-else-if="categoryPageData && categoryPageData.length > 0" class="cards-container">
-          <div
-            v-for="subCategory in categoryPageData"
-            :key="subCategory.name"
-            class="sub-category-card"
-          >
-            <div class="sub-category-header">
-              <h3 class="sub-category-title">{{ subCategory.name }}</h3>
+        <!-- 自定义导航（我的导航）特殊布局：左侧树形菜单 + 右侧网站列表 -->
+        <div v-if="isCustomNav" class="custom-nav-layout">
+          <div v-if="customLoading" class="loading">加载中...</div>
+          <div v-else class="custom-nav-content">
+            <!-- 左侧分类树 -->
+            <div class="custom-category-tree">
+              <div class="tree-header">
+                <FaIcon name="i-mdi:view-dashboard" class="tree-header-icon"/>
+                <span>我的分类</span>
+              </div>
+              <div class="tree-container" ref="treeContainerRef">
+                <ElTree
+                  ref="treeRef"
+                  :data="customCategoryTree"
+                  :props="{ children: 'children', label: 'label' }"
+                  node-key="id"
+                  :default-expanded-keys="defaultExpandedKeys"
+                  :highlight-current="true"
+                  :current-node-key="selectedCategoryId"
+                  @node-click="handleNodeClick"
+                >
+                  <template #default="{ node, data }">
+                    <div class="custom-tree-node">
+                      <div class="tree-node-icon">
+                        <img
+                          v-if="data.icon"
+                          :src="data.icon"
+                          :alt="data.label"
+                          class="tree-icon-img"
+                        />
+                        <FaIcon
+                          v-else
+                          name="i-mdi:folder"
+                          class="tree-icon"
+                        />
+                      </div>
+                      <span class="tree-node-label">{{ data.label }}</span>
+                    </div>
+                  </template>
+                </ElTree>
+              </div>
+              <div v-if="customCategoryTree.length === 0" class="tree-empty">
+                <FaIcon name="i-mdi:folder-off" class="tree-empty-icon"/>
+                <span>暂无分类</span>
+              </div>
             </div>
-            <div class="websites-grid">
+            <!-- 右侧网站列表 -->
+            <div class="custom-websites-list">
+              <!-- 加载遮罩层（不遮挡内容） -->
+              <div v-if="customLoading" class="loading-overlay">
+                <div class="loading-spinner-small"></div>
+              </div>
+              <!-- 按分类分组展示 -->
+              <Transition name="fade-content" mode="out-in">
+                <div v-if="customWebsitesGrouped && customWebsitesGrouped.length > 0" key="content" class="cards-container">
+                  <TransitionGroup name="list" tag="div">
+                    <div
+                      v-for="subCategory in customWebsitesGrouped"
+                      :key="subCategory.name"
+                      :data-right-category-name="subCategory.name"
+                      class="sub-category-card"
+                    >
+                      <div class="sub-category-header">
+                        <h3 class="sub-category-title">{{ subCategory.name }}</h3>
+                      </div>
+                      <div class="websites-grid">
+                        <div
+                          v-for="website in subCategory.children"
+                          :key="website.id"
+                          class="website-item"
+                          @click="openWebsite(website.url || '')"
+                        >
+                          <div class="website-icon">
+                            <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                            <FaIcon v-else name="i-mdi:link"/>
+                          </div>
+                          <div class="website-name">{{ website.name }}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </TransitionGroup>
+                </div>
+                <!-- 空状态 -->
+                <div v-else-if="selectedCategoryId && !customLoading" key="empty" class="empty-state">
+                  <FaIcon name="i-mdi:web-off" class="empty-icon"/>
+                  <p class="empty-text">暂无网站</p>
+                  <p class="empty-hint">该分类下暂无网站</p>
+                </div>
+                <div v-else-if="!selectedCategoryId" key="select" class="empty-state">
+                  <FaIcon name="i-mdi:web-off" class="empty-icon"/>
+                  <p class="empty-text">暂无网站</p>
+                  <p class="empty-hint">请先选择一个分类</p>
+                </div>
+              </Transition>
+            </div>
+          </div>
+        </div>
+        <!-- 其他分类的展示方式 -->
+        <div v-else>
+          <div v-if="currentCategory.loading" class="loading">加载中...</div>
+          <!-- 如果有分类数据，使用卡片方式展示（两层结构：子分类 -> 网站列表） -->
+          <div v-else-if="categoryPageData && categoryPageData.length > 0" class="cards-container">
+            <div
+              v-for="subCategory in categoryPageData"
+              :key="subCategory.name"
+              class="sub-category-card"
+            >
+              <div class="sub-category-header">
+                <h3 class="sub-category-title">{{ subCategory.name }}</h3>
+              </div>
+              <div class="websites-grid">
+                <div
+                  v-for="website in subCategory.children"
+                  :key="website.id"
+                  class="website-item"
+                  @click="openWebsite(website.url || '')"
+                >
+                  <div class="website-icon">
+                    <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                    <FaIcon v-else name="i-mdi:link"/>
+                  </div>
+                  <div class="website-name">{{ website.name }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 如果没有数据，显示提示 -->
+          <div v-else class="category-block">
+            <div class="category-header">
+              <div class="category-title">
+                <FaIcon :name="currentCategory.icon" :style="{ color: currentCategory.color }"/>
+                <span>{{ currentCategory.title }}</span>
+              </div>
+            </div>
+            <div v-if="currentCategory.items && currentCategory.items.length > 0" class="websites-grid">
               <div
-                v-for="website in subCategory.children"
+                v-for="website in currentCategory.items"
                 :key="website.id"
                 class="website-item"
                 @click="openWebsite(website.url || '')"
               >
                 <div class="website-icon">
-                  <img v-if="website.icon" :src="website.icon" :alt="website.name" />
-                  <FaIcon v-else name="i-mdi:link" />
+                  <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                  <FaIcon v-else name="i-mdi:link"/>
                 </div>
                 <div class="website-name">{{ website.name }}</div>
               </div>
             </div>
+            <div v-else class="loading">暂无数据</div>
           </div>
-        </div>
-        <!-- 如果没有数据，显示提示 -->
-        <div v-else class="category-block">
-          <div class="category-header">
-            <div class="category-title">
-              <FaIcon :name="currentCategory.icon" :style="{ color: currentCategory.color }" />
-              <span>{{ currentCategory.title }}</span>
-            </div>
-          </div>
-          <div v-if="currentCategory.items && currentCategory.items.length > 0" class="websites-grid">
-            <div
-              v-for="website in currentCategory.items"
-              :key="website.id"
-              class="website-item"
-              @click="openWebsite(website.url || '')"
-            >
-              <div class="website-icon">
-                <img v-if="website.icon" :src="website.icon" :alt="website.name" />
-                <FaIcon v-else name="i-mdi:link" />
-              </div>
-              <div class="website-name">{{ website.name }}</div>
-            </div>
-          </div>
-          <div v-else class="loading">暂无数据</div>
         </div>
       </div>
-
-      <!-- 首页卡片式展示 -->
       <div v-else class="home-cards-section home-page">
         <div v-if="loading" class="loading">加载中...</div>
         <div v-else class="cards-container">
@@ -334,8 +703,8 @@ const loadNavHomeSites = () => {
                 @click="openWebsite(website.url || '')"
               >
                 <div class="website-icon">
-                  <img v-if="website.icon" :src="website.icon" :alt="website.name" />
-                  <FaIcon v-else name="i-mdi:link" />
+                  <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                  <FaIcon v-else name="i-mdi:link"/>
                 </div>
                 <div class="website-name">{{ website.name }}</div>
               </div>
@@ -431,7 +800,7 @@ const loadNavHomeSites = () => {
     min-width: 80px;
     flex-shrink: 0;
     position: relative;
-    
+
     &::after {
       content: '';
       position: absolute;
@@ -517,7 +886,7 @@ const loadNavHomeSites = () => {
 
   .website-item:hover .website-icon {
     background: #e2e8f0;
-    
+
     :deep(.fa-icon) {
       color: #475569;
     }
@@ -818,6 +1187,386 @@ const loadNavHomeSites = () => {
   }
 }
 
+/* 自定义导航（我的导航）布局 */
+.custom-nav-layout {
+  width: 100%;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-nav-content {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  position: relative;
+}
+
+.custom-category-tree {
+  width: 240px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  // 自定义滚动条样式
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.2);
+    border-radius: 3px;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: rgba(102, 126, 234, 0.3);
+    }
+  }
+
+  &:hover {
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.1), 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.tree-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.15);
+
+  .tree-header-icon {
+    font-size: 20px;
+    color: #667eea;
+  }
+}
+
+.tree-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  
+  // Element Tree 自定义样式
+  :deep(.el-tree) {
+    background: transparent;
+    
+    .el-tree-node {
+      .el-tree-node__content {
+        height: 44px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 4px;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        }
+      }
+      
+      &.is-current > .el-tree-node__content {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        
+        .tree-node-label {
+          color: #fff;
+          font-weight: 600;
+        }
+        
+        .tree-icon {
+          color: #fff;
+        }
+      }
+    }
+  }
+}
+
+.custom-tree-node {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex: 1;
+}
+
+.tree-node-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #f1f5f9;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.tree-icon {
+  font-size: 18px;
+  color: #718096;
+  transition: color 0.2s ease;
+}
+
+.tree-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tree-node-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #4a5568;
+  transition: color 0.2s ease, font-weight 0.2s ease;
+}
+
+.tree-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #a0aec0;
+  gap: 12px;
+
+  .tree-empty-icon {
+    font-size: 48px;
+    opacity: 0.5;
+  }
+
+  span {
+    font-size: 14px;
+  }
+}
+
+.custom-websites-list {
+  flex: 1;
+  min-width: 0;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 12px;
+  padding: 24px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.03);
+  min-height: 400px;
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(100vh - 140px);
+  
+  // 自定义滚动条样式
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(102, 126, 234, 0.2);
+    border-radius: 3px;
+    transition: background 0.3s ease;
+    
+    &:hover {
+      background: rgba(102, 126, 234, 0.3);
+    }
+  }
+
+  // 加载遮罩层
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(2px);
+    z-index: 10;
+    border-radius: 12px;
+
+    .loading-spinner-small {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(102, 126, 234, 0.1);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+  }
+
+  // 使用通用的卡片容器样式
+  .cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  // 子分类卡片样式（与综合网站页面保持一致）
+  .sub-category-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 0;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    scroll-margin-top: 20px; // 滚动定位时的偏移
+
+    &:hover {
+      background: linear-gradient(135deg, #ffffff 0%, #f0f4ff 100%);
+      border-color: rgba(102, 126, 234, 0.15);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    // 高亮效果
+    &.highlight-category {
+      animation: highlightPulse 2s ease-in-out;
+      border-color: rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+    }
+  }
+
+  @keyframes highlightPulse {
+    0%, 100% {
+      background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+      border-color: rgba(102, 126, 234, 0.4);
+    }
+    50% {
+      background: linear-gradient(135deg, #f0f4ff 0%, #f8f9ff 100%);
+      border-color: rgba(102, 126, 234, 0.6);
+    }
+  }
+
+  .sub-category-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px dashed rgba(102, 126, 234, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sub-category-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #4a5568;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .websites-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  min-height: 400px;
+
+  .empty-icon {
+    font-size: 64px;
+    color: #cbd5e0;
+    margin-bottom: 16px;
+    opacity: 0.6;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .empty-text {
+    font-size: 16px;
+    color: #718096;
+    font-weight: 500;
+    margin: 0 0 8px 0;
+  }
+
+  .empty-hint {
+    font-size: 14px;
+    color: #a0aec0;
+    margin: 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+// 过渡动画
+.fade-content-enter-active {
+  transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+}
+
+.fade-content-leave-active {
+  transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+}
+
+.fade-content-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-content-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+.list-enter-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.list-enter-from {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+
+.list-move {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .content-area {
@@ -827,6 +1576,14 @@ const loadNavHomeSites = () => {
   .sub-categories-wrapper {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 20px;
+  }
+
+  .custom-nav-content {
+    flex-direction: column;
+  }
+
+  .custom-category-tree {
+    width: 100%;
   }
 }
 
