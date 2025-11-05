@@ -141,6 +141,17 @@ export function navCustomWebsiteApi<T = any>(data: NavCustomWebsiteQuery): Promi
 }
 
 /**
+ * 自定义网址-分页
+ */
+export function navCustomWebsitePageApi(data: PageQuery<NavCustomWebsiteQuery>): Promise<AxiosResponse<PageResult<NavCustomWebsiteVo>>> {
+  return api({
+    url: '/nav/custom/website/page',
+    method: 'post',
+    data: data,
+  });
+}
+
+/**
  * 自定义网址-详情
  */
 export function navCustomWebsiteDetailApi(websiteId: string): Promise<AxiosResponse<NavCustomWebsiteVo>> {

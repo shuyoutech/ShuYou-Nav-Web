@@ -3,8 +3,6 @@ import {useUserStore} from '@/store/modules/user.ts'
 import {ElMessage} from 'element-plus'
 import {authAuthorize, authSendSms} from "@/api/auth";
 import {memberBindMobileApi} from "@/api/member";
-import {payGetWalletApi} from "@/api/pay";
-import RechargeModal from '@/components/RechargeModal/index.vue'
 
 const router = useRouter()
 
@@ -46,12 +44,6 @@ const getUserNickname = () => {
   return userStore.nickname || ''
 }
 
-// 充值弹窗相关
-const showRechargeModal = ref(false)
-const handleRecharge = () => {
-  showRechargeModal.value = true
-}
-
 // 处理手机绑定
 const handlePhoneBinding = () => {
   if (isMobileBound()) {
@@ -82,7 +74,7 @@ const isWechatBound = () => {
 
 // 处理个人中心
 const handlePersonalCenter = () => {
-  router.push('/settings/usage')
+  router.push('/settings/category')
   emit('update:visible', false)
 }
 
@@ -187,11 +179,6 @@ const closeMobileModal = () => {
 }
 
 const props = defineProps<Props>()
-watch(() => props.visible, (newVal) => {
-  if (newVal) {
-    getUserPower()
-  }
-})
 // 登录后若没有绑定手机,则弹出绑定手机弹窗
 watch(() => userStore.userInfo?.mobile, (newVal) => {
   if (userStore.token && newVal === '') {
@@ -199,13 +186,6 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
     mobileForm.value = { mobile: '', code: '' }
   }
 }, { deep: true, immediate: true })
-// 获取用户算力值
-const balance = ref<number>(0)
-const getUserPower = () => {
-  payGetWalletApi().then((res: any) => {
-    balance.value = res.data.balance || 0
-  })
-}
 
 
 </script>
@@ -226,18 +206,6 @@ const getUserPower = () => {
           <img v-else src="@/assets/images/avatar.png" alt="User"/>
         </div>
         <h2 class="username">{{ getUserNickname() }}</h2>
-
-        <!-- 用户算力信息 -->
-        <div class="power-section">
-          <div class="power-info">
-            <span class="power-label">算力:</span>
-            <span class="power-value"> {{ balance }}</span>
-          </div>
-          <button v-auth="'请先登录后再进行充值'" class="recharge-btn" @click="handleRecharge">
-            <FaIcon name="i-mdi:credit-card-plus"/>
-            充值
-          </button>
-        </div>
       </div>
 
       <!-- 账户绑定选项 -->
@@ -376,9 +344,6 @@ const getUserPower = () => {
       </button>
     </div>
   </div>
-
-  <!-- 充值弹窗 -->
-  <RechargeModal v-model:visible="showRechargeModal" @update:visible="getUserPower"/>
 </template>
 
 <style scoped>
@@ -513,70 +478,6 @@ const getUserPower = () => {
   text-shadow: none;
 }
 
-/* 算力信息样式 */
-.power-section {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 12px;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
-  border: 1px solid #e0e7ff;
-  border-radius: 8px;
-}
-
-.power-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.power-label {
-  font-size: 14px;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.power-value {
-  font-size: 16px;
-  color: #3b82f6;
-  font-weight: 700;
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.recharge-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: white;
-  background: linear-gradient(135deg, #10b981, #059669);
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
-}
-
-.recharge-btn:hover {
-  background: linear-gradient(135deg, #059669, #047857);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
-}
-
-.recharge-btn:active {
-  transform: translateY(0);
-}
-
-.recharge-btn .fa-icon {
-  font-size: 14px;
-}
-
 /* 账户绑定选项 */
 .binding-section {
   margin-bottom: 20px;
@@ -681,24 +582,6 @@ const getUserPower = () => {
   .username {
     font-size: 18px;
   }
-
-  .power-section {
-    margin-top: 10px;
-    padding: 6px 10px;
-  }
-
-  .power-label {
-    font-size: 13px;
-  }
-
-  .power-value {
-    font-size: 15px;
-  }
-
-  .recharge-btn {
-    padding: 5px 10px;
-    font-size: 12px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -718,32 +601,6 @@ const getUserPower = () => {
 
   .username {
     font-size: 16px;
-  }
-
-  .power-section {
-    margin-top: 8px;
-    padding: 5px 8px;
-    flex-direction: column;
-    gap: 8px;
-    align-items: stretch;
-  }
-
-  .power-info {
-    justify-content: center;
-  }
-
-  .power-label {
-    font-size: 12px;
-  }
-
-  .power-value {
-    font-size: 14px;
-  }
-
-  .recharge-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-    justify-content: center;
   }
 
   .binding-left {

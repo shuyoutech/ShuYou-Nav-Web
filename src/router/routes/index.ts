@@ -211,6 +211,24 @@ const routes: any[] = [
           show: false,
         },
       },
+      {
+        path: 'category',
+        name: 'categoryIndex',
+        component: () => import('@/views/settings/category.vue'),
+        meta: {
+          title: '分类管理',
+          show: false,
+        },
+      },
+      {
+        path: 'website',
+        name: 'websiteIndex',
+        component: () => import('@/views/settings/website.vue'),
+        meta: {
+          title: '网站管理',
+          show: false,
+        },
+      },
     ],
   },
 ]

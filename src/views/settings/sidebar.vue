@@ -2,11 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  DataAnalysis,
-  Money,
-  Document,
   ArrowRight,
   InfoFilled,
+  Folder,
+  Link,
 } from '@element-plus/icons-vue'
 
 const route = useRoute()
@@ -15,28 +14,20 @@ const activeTab = ref('')
 
 const menuItems = [
   {
-    label: '用量信息',
-    value: 'usage',
-    icon: DataAnalysis,
-    path: '/settings/usage',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    desc: '查看算力使用情况',
+    label: '分类管理',
+    value: 'category',
+    icon: Folder,
+    path: '/settings/category',
+    color: 'linear-gradient(135deg, #fa8c16 0%, #ffa940 100%)',
+    desc: '管理自定义分类',
   },
   {
-    label: '账单信息',
-    value: 'bills',
-    icon: Money,
-    path: '/settings/bills',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    desc: '查看消费记录',
-  },
-  {
-    label: '发票管理',
-    value: 'invoice',
-    icon: Document,
-    path: '/settings/invoice',
-    color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    desc: '管理发票申请和记录',
+    label: '网站管理',
+    value: 'website',
+    icon: Link,
+    path: '/settings/website',
+    color: 'linear-gradient(135deg, #722ed1 0%, #9254de 100%)',
+    desc: '管理自定义网站',
   },
   {
     label: '关于我们',
