@@ -125,27 +125,6 @@ const routes: any[] = [
     ],
   },
   {
-    path: '/industry',
-    name: 'NavIndustry',
-    component: () => import('@/layouts/layout.vue'),
-    meta: {
-      title: '行业分类',
-      show: true,
-      icon: 'i-mdi:briefcase',
-    },
-    children: [
-      {
-        path: '',
-        name: 'NavIndustryIndex',
-        component: () => import('@/views/nav/index.vue'),
-        meta: {
-          title: '行业分类',
-          show: false,
-        },
-      },
-    ],
-  },
-  {
     path: '/custom',
     name: 'NavCustom',
     component: () => import('@/layouts/layout.vue'),
@@ -161,6 +140,27 @@ const routes: any[] = [
         component: () => import('@/views/nav/index.vue'),
         meta: {
           title: '我的导航',
+          show: false,
+        },
+      },
+    ],
+  },
+  {
+    path: '/aigc',
+    name: 'AIGCNav',
+    component: () => import('@/layouts/layout.vue'),
+    meta: {
+      title: 'AIGC工具导航',
+      show: false,
+      icon: 'i-mdi:robot',
+    },
+    children: [
+      {
+        path: '',
+        name: 'AIGCNavIndex',
+        component: () => import('@/views/aigc/index.vue'),
+        meta: {
+          title: 'AIGC工具导航',
           show: false,
         },
       },
