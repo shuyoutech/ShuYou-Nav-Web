@@ -208,6 +208,11 @@ const customLoading = ref(false)
 const treeContainerRef = ref<HTMLElement | null>(null)
 const treeRef = ref<InstanceType<typeof ElTree> | null>(null)
 const defaultExpandedKeys = ref<string[]>([]) // Element Tree 默认展开的节点
+const DEFAULT_CUSTOM_CATEGORY_ICON = 'i-ep:folder'
+const isUrl = (value?: string) => {
+  if (!value) return false
+  return /^https?:\/\//.test(value)
+}
 
 // 将接口返回的数据转换为 Element Tree 需要的格式
 function convertToElTreeData(apiNodes: ApiTreeNode[]): ElTreeNode[] {
@@ -556,14 +561,14 @@ onMounted(() => {
                     <div class="custom-tree-node">
                       <div class="tree-node-icon">
                         <img
-                          v-if="data.icon"
+                          v-if="data.icon && isUrl(data.icon)"
                           :src="data.icon"
                           :alt="data.label"
                           class="tree-icon-img"
                         />
                         <FaIcon
                           v-else
-                          name="i-mdi:folder"
+                          :name="data.icon || DEFAULT_CUSTOM_CATEGORY_ICON"
                           class="tree-icon"
                         />
                       </div>
@@ -604,7 +609,12 @@ onMounted(() => {
                           @click="openWebsite(website.url || '')"
                         >
                           <div class="website-icon">
-                            <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                            <img
+                              v-if="website.icon && isUrl(website.icon)"
+                              :src="website.icon"
+                              :alt="website.name"
+                            />
+                            <FaIcon v-else-if="website.icon" :name="website.icon"/>
                             <FaIcon v-else name="i-mdi:link"/>
                           </div>
                           <div class="website-name">{{ website.name }}</div>
@@ -649,7 +659,12 @@ onMounted(() => {
                   @click="openWebsite(website.url || '')"
                 >
                   <div class="website-icon">
-                    <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                    <img
+                      v-if="website.icon && isUrl(website.icon)"
+                      :src="website.icon"
+                      :alt="website.name"
+                    />
+                    <FaIcon v-else-if="website.icon" :name="website.icon"/>
                     <FaIcon v-else name="i-mdi:link"/>
                   </div>
                   <div class="website-name">{{ website.name }}</div>
@@ -673,7 +688,12 @@ onMounted(() => {
                 @click="openWebsite(website.url || '')"
               >
                 <div class="website-icon">
-                  <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                  <img
+                    v-if="website.icon && isUrl(website.icon)"
+                    :src="website.icon"
+                    :alt="website.name"
+                  />
+                  <FaIcon v-else-if="website.icon" :name="website.icon"/>
                   <FaIcon v-else name="i-mdi:link"/>
                 </div>
                 <div class="website-name">{{ website.name }}</div>
@@ -703,7 +723,12 @@ onMounted(() => {
                 @click="openWebsite(website.url || '')"
               >
                 <div class="website-icon">
-                  <img v-if="website.icon" :src="website.icon" :alt="website.name"/>
+                  <img
+                    v-if="website.icon && isUrl(website.icon)"
+                    :src="website.icon"
+                    :alt="website.name"
+                  />
+                  <FaIcon v-else-if="website.icon" :name="website.icon"/>
                   <FaIcon v-else name="i-mdi:link"/>
                 </div>
                 <div class="website-name">{{ website.name }}</div>
@@ -1302,6 +1327,15 @@ onMounted(() => {
         .tree-icon {
           color: #fff;
         }
+      }
+
+      &.is-current .tree-node-icon {
+        background: rgba(255, 255, 255, 0.25);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+      }
+
+      &.is-current .tree-icon-img {
+        filter: brightness(1.2);
       }
     }
   }

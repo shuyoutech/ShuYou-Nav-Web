@@ -45,17 +45,27 @@ const defaultProps = {
   children: 'children',
   label: 'name',
 }
+const treeSelectProps = {
+  value: 'id',
+  label: 'name',
+  children: 'children',
+}
 
 // 表单相关
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增分类')
 const formRef = ref<InstanceType<typeof ElForm> | null>(null)
+const DEFAULT_CATEGORY_ICON = 'i-ep:folder'
 const formData = ref<NavCustomCategoryBo>({
   name: '',
   parentId: '',
-  icon: '',
+  icon: DEFAULT_CATEGORY_ICON,
   sort: 0,
 })
+const isUrl = (value?: string) => {
+  if (!value) return false
+  return /^https?:\/\//.test(value)
+}
 
 const formRules = {
   name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }],
@@ -64,60 +74,40 @@ const formRules = {
 // 当前选中的节点
 const currentNode = ref<NavCustomCategoryVo | null>(null)
 
-// 扁平化分类树用于选择器
-const flatCategoryList = computed(() => {
-  // 查找节点及其所有子节点的ID
-  const findNodeAndChildrenIds = (nodes: TreeNode[], targetId: string): Set<string> => {
-    const ids = new Set<string>()
-    const findNode = (nodeList: TreeNode[]): TreeNode | null => {
-      for (const node of nodeList) {
+// 计算树形选择器数据（排除当前分类及其子分类）
+const treeSelectData = computed(() => {
+  const excludedIds = new Set<string>()
+
+  if (formData.value.id) {
+    const collectIds = (nodes: TreeNode[], targetId: string) => {
+      for (const node of nodes) {
         if (node.id === targetId) {
-          return node
-        }
-        if (node.children && node.children.length > 0) {
-          const found = findNode(node.children)
-          if (found) {
-            return found
+          const collect = (item: TreeNode) => {
+            if (item.id) excludedIds.add(item.id)
+            item.children?.forEach(collect)
           }
+          collect(node)
+          return true
         }
-      }
-      return null
-    }
-    
-    const targetNode = findNode(nodes)
-    if (targetNode) {
-      const collectIds = (node: TreeNode) => {
-        ids.add(node.id)
         if (node.children && node.children.length > 0) {
-          node.children.forEach(collectIds)
+          if (collectIds(node.children, targetId)) return true
         }
       }
-      collectIds(targetNode)
+      return false
     }
-    return ids
+    collectIds(treeData.value, formData.value.id)
   }
-  
-  const excludedIds = formData.value.id ? findNodeAndChildrenIds(treeData.value, formData.value.id) : new Set()
-  
-  const flatten = (nodes: TreeNode[], level = 0): Array<NavCustomCategoryVo & { level: number }> => {
-    const result: Array<NavCustomCategoryVo & { level: number }> = []
-    nodes.forEach(node => {
-      // 排除当前编辑的分类及其所有子分类（避免选择自己或自己的子分类作为父分类）
-      if (!excludedIds.has(node.id)) {
-        result.push({
-          id: node.id,
-          name: node.name,
-          icon: node.icon,
-          level,
-        })
-        if (node.children && node.children.length > 0) {
-          result.push(...flatten(node.children, level + 1))
-        }
-      }
-    })
-    return result
+
+  const cloneWithoutExcluded = (nodes: TreeNode[]): TreeNode[] => {
+    return nodes
+      .filter(node => !excludedIds.has(node.id))
+      .map(node => ({
+        ...node,
+        children: node.children ? cloneWithoutExcluded(node.children) : undefined,
+      }))
   }
-  return flatten(treeData.value)
+
+  return cloneWithoutExcluded(treeData.value)
 })
 
 // 提取API数据
@@ -226,7 +216,7 @@ const handleAdd = (parentId?: string) => {
   formData.value = {
     name: '',
     parentId: parentId || '',
-    icon: '',
+    icon: DEFAULT_CATEGORY_ICON,
     sort: 0,
   }
   currentNode.value = null
@@ -335,7 +325,7 @@ const handleCancel = () => {
   formData.value = {
     name: '',
     parentId: '',
-    icon: '',
+    icon: DEFAULT_CATEGORY_ICON,
     sort: 0,
   }
 }
@@ -385,7 +375,7 @@ onMounted(() => {
                 <template #default="{ node, data }">
                   <div class="tree-node">
                     <div class="tree-node-content">
-                      <FaIcon v-if="data.icon" :name="data.icon" class="tree-node-icon" />
+                      <FaIcon :name="data.icon || DEFAULT_CATEGORY_ICON" class="tree-node-icon" />
                       <span class="tree-node-label">{{ node.label }}</span>
                     </div>
                     <div class="tree-node-actions">
@@ -449,26 +439,31 @@ onMounted(() => {
           <el-input v-model="formData.name" placeholder="请输入分类名称" />
         </el-form-item>
         <el-form-item label="父分类">
-          <el-select
+          <el-tree-select
             v-model="formData.parentId"
+            :data="treeSelectData"
+            :props="treeSelectProps"
             placeholder="请选择父分类（留空则为顶级分类）"
             clearable
             style="width: 100%"
-          >
-            <el-option label="顶级分类" value="" />
-            <el-option
-              v-for="category in flatCategoryList"
-              :key="category.id"
-              :label="'  '.repeat(category.level) + category.name"
-              :value="category.id"
-            />
-          </el-select>
+            check-strictly
+          />
         </el-form-item>
         <el-form-item label="图标">
           <el-input
             v-model="formData.icon"
-            placeholder="请输入图标名称（如：i-ep:folder）"
+            placeholder="请输入图标名称或URL（如：i-ep:folder 或 https://xxx/icon.png）"
           />
+          <div v-if="formData.icon" class="icon-preview">
+            <span class="icon-preview-label">预览：</span>
+            <img
+              v-if="isUrl(formData.icon)"
+              :src="formData.icon"
+              alt="preview"
+              class="icon-preview-img"
+            />
+            <FaIcon v-else :name="formData.icon" class="icon-preview-icon" />
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number
@@ -613,6 +608,31 @@ onMounted(() => {
 
 .tree-node:hover .tree-node-actions {
   opacity: 1;
+}
+
+.icon-preview {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-preview-label {
+  font-size: 13px;
+  color: #5a6c7d;
+}
+
+.icon-preview-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.icon-preview-icon {
+  font-size: 24px;
+  color: #fa8c16;
 }
 
 :deep(.el-tree-node__content) {

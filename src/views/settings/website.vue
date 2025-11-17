@@ -13,6 +13,7 @@ import {
   navCustomWebsiteUpdateApi,
   navCustomWebsiteDeleteApi,
   navCustomCategoryTreeApi,
+  navCrawlerWebsiteApi,
 } from '@/api/nav'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -46,6 +47,13 @@ const formData = ref<NavCustomWebsiteBo>({
   categoryId: '',
   sort: 0,
 })
+const crawlerLoading = ref(false)
+
+// 判断是否为URL
+const isUrl = (value?: string) => {
+  if (!value) return false
+  return /^https?:\/\//.test(value)
+}
 
 const formRules = {
   name: [{ required: true, message: '请输入网站名称', trigger: 'blur' }],
@@ -79,17 +87,17 @@ const convertToTreeSelectData = (apiNodes: any[]): any[] => {
   return apiNodes.map((node) => {
     // 处理 metadata 结构
     const categoryData = node.metadata || node
-    
+
     const treeNode: any = {
       id: categoryData.id,
       name: categoryData.name,
       icon: categoryData.icon,
     }
-    
+
     if (node.children && Array.isArray(node.children) && node.children.length > 0) {
       treeNode.children = convertToTreeSelectData(node.children)
     }
-    
+
     return treeNode
   })
 }
@@ -166,11 +174,11 @@ const handleAdd = () => {
 // 打开编辑对话框
 const handleEdit = async (row: NavCustomWebsiteVo) => {
   if (!row.id) return
-  
+
   try {
     const response = await navCustomWebsiteDetailApi(row.id)
     const data = response.data
-    
+
     dialogTitle.value = '编辑网站'
     formData.value = {
       id: data.id,
@@ -193,7 +201,7 @@ const handleEdit = async (row: NavCustomWebsiteVo) => {
 // 删除网站
 const handleDelete = async (row: NavCustomWebsiteVo) => {
   if (!row.id) return
-  
+
   try {
     await ElMessageBox.confirm(
       `确定要删除网站"${row.name}"吗？`,
@@ -204,7 +212,7 @@ const handleDelete = async (row: NavCustomWebsiteVo) => {
         type: 'warning',
       }
     )
-    
+
     const response = await navCustomWebsiteDeleteApi([row.id])
     if (response.data) {
       ElMessage.success('删除成功')
@@ -223,7 +231,7 @@ const handleDelete = async (row: NavCustomWebsiteVo) => {
 // 保存表单
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (valid) {
       try {
@@ -268,10 +276,39 @@ const handleCancel = () => {
   }
 }
 
+// 抓取网站信息
+const handleCrawler = async () => {
+  if (!formData.value.url) {
+    ElMessage.warning('请先输入网站地址')
+    return
+  }
+
+  crawlerLoading.value = true
+  try {
+    const { data } = await navCrawlerWebsiteApi(formData.value.url)
+    if (data) {
+      if (data.title) {
+        formData.value.name = data.title
+      }
+      if (data.favicon) {
+        formData.value.icon = data.favicon
+      }
+      ElMessage.success('抓取成功')
+    } else {
+      ElMessage.warning('未获取到网站信息')
+    }
+  } catch (error) {
+    console.error('抓取网站信息失败:', error)
+    ElMessage.error('抓取网站信息失败')
+  } finally {
+    crawlerLoading.value = false
+  }
+}
+
 // 获取分类名称（从树形数据中查找）
 const getCategoryName = (categoryId?: string): string => {
   if (!categoryId) return '-'
-  
+
   const findNode = (nodes: any[]): any | null => {
     for (const node of nodes) {
       if (node.id === categoryId) {
@@ -286,7 +323,7 @@ const getCategoryName = (categoryId?: string): string => {
     }
     return null
   }
-  
+
   const node = findNode(categoryTreeData.value)
   return node?.name || '-'
 }
@@ -307,7 +344,7 @@ onMounted(() => {
 
       <!-- 主内容区 -->
       <div class="main-content">
-        <div class="table-section">
+      <div class="table-section">
           <div class="table-container">
             <div class="table-header">
               <div>
@@ -386,9 +423,17 @@ onMounted(() => {
                     {{ getCategoryName(row.categoryId) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="icon" label="图标" width="100" align="center">
+                <el-table-column prop="icon" label="图标" width="120" align="center">
                   <template #default="{ row }">
-                    <FaIcon v-if="row.icon" :name="row.icon" class="website-icon" />
+                    <template v-if="row.icon">
+                      <img
+                        v-if="isUrl(row.icon)"
+                        :src="row.icon"
+                        alt="icon"
+                        class="website-icon-img"
+                      />
+                      <FaIcon v-else :name="row.icon" class="website-icon" />
+                    </template>
                     <span v-else>-</span>
                   </template>
                 </el-table-column>
@@ -455,11 +500,17 @@ onMounted(() => {
         :rules="formRules"
         label-width="100px"
       >
+        <el-form-item label="网站地址" prop="url">
+          <el-input v-model="formData.url" placeholder="请输入网站地址（以http://或https://开头）">
+            <template #append>
+              <el-button type="primary" :loading="crawlerLoading" @click="handleCrawler">
+                抓取
+              </el-button>
+            </template>
+          </el-input>
+        </el-form-item>
         <el-form-item label="网站名称" prop="name">
           <el-input v-model="formData.name" placeholder="请输入网站名称" />
-        </el-form-item>
-        <el-form-item label="网站地址" prop="url">
-          <el-input v-model="formData.url" placeholder="请输入网站地址（以http://或https://开头）" />
         </el-form-item>
         <el-form-item label="所属分类" prop="categoryId">
           <el-tree-select
@@ -474,8 +525,18 @@ onMounted(() => {
         <el-form-item label="图标">
           <el-input
             v-model="formData.icon"
-            placeholder="请输入图标名称（如：i-ep:link）"
+            placeholder="请输入图标名称或URL（如：i-ep:link 或 https://xxx/favicon.ico）"
           />
+          <div v-if="formData.icon" class="icon-preview">
+            <span class="icon-preview-label">预览：</span>
+            <img
+              v-if="isUrl(formData.icon)"
+              :src="formData.icon"
+              alt="preview"
+              class="icon-preview-img"
+            />
+            <FaIcon v-else :name="formData.icon" class="icon-preview-icon" />
+          </div>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number
@@ -643,6 +704,39 @@ onMounted(() => {
 
 .website-icon {
   font-size: 20px;
+  color: #722ed1;
+}
+
+.website-icon-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.icon-preview {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-preview-label {
+  font-size: 13px;
+  color: #5a6c7d;
+}
+
+.icon-preview-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.icon-preview-icon {
+  font-size: 24px;
   color: #722ed1;
 }
 

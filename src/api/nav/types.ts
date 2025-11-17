@@ -79,3 +79,9 @@ export interface NavCustomWebsiteBo {
   icon?: string;
   sort?: number;
 }
+
+export interface NavCrawlerWebsiteVo {
+  title?: string;
+  description?: string;
+  favicon?: string;
+}

@@ -1,6 +1,7 @@
 import type {AxiosResponse} from "axios";
 import api from "@/utils/axios.ts";
 import type {
+  NavCrawlerWebsiteVo,
   NavCustomCategoryBo,
   NavCustomCategoryQuery,
   NavCustomCategoryVo, NavCustomWebsiteBo, NavCustomWebsiteQuery, NavCustomWebsiteVo,
@@ -191,5 +192,18 @@ export function navCustomWebsiteDeleteApi(data: string[]): Promise<AxiosResponse
     url: '/nav/custom/website/delete',
     method: 'post',
     data: data
+  });
+}
+
+/**
+ * 自定义网址-网站抓取信息
+ */
+export function navCrawlerWebsiteApi(url: string): Promise<AxiosResponse<NavCrawlerWebsiteVo>> {
+  return api({
+    url: '/crawler/website',
+    method: 'post',
+    data: {
+      url
+    }
   });
 }
