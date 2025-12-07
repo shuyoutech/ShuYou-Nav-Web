@@ -76,6 +76,23 @@ export interface ImageModelParam {
   duration?: number;
 }
 
+
+export interface ImageMessageVo {
+  id: string;                      //对话消息ID
+  userId: string;                  //用户ID
+  userName: string;                //用户名称
+  provider: string;                //供应商
+  modelName: string;               //模型名称
+  requestTime: string;             //请求时间
+  responseTime: string;            //响应时间
+  durationSeconds: number;         //对话运行时间
+  messageId: string;               //模型返回消息ID
+  imageNum: number;                //输出图片数量
+  imageUrls: string[];             //输出图片地址
+  price: number;                   //消费价格
+  credit: number;                  //消费算力
+}
+
 export interface VideoModelBo {
   provider: string; //供应商
   model: string; //模型名称
@@ -96,6 +113,23 @@ export interface VideoModelParam {
   duration?: number;
 }
 
+export interface VideoMessageVo {
+  id: string;                      //对话消息ID
+  userId: string;                  //用户ID
+  userName: string;                //用户名称
+  provider: string;                //供应商
+  modelName: string;               //模型名称
+  requestTime: string;             //请求时间
+  responseTime: string;            //响应时间
+  durationSeconds: number;         //对话运行时间
+  messageId: string;               //模型返回消息ID
+  videoDuration: number;           //视频时长
+  videoUrl: string;                //输出视频地址
+  price: number;                   //消费价格
+  credit: number;                  //消费算力
+}
+
+
 export interface AudioModelBo {
   provider: string; //供应商
   model: string; //模型名称
@@ -110,6 +144,20 @@ export interface AudioModelParam {
   fileUrls?: string[];
 }
 
+export interface AudioMessageVo {
+  id: string;                      //对话消息ID
+  userId: string;                  //用户ID
+  userName: string;                //用户名称
+  provider: string;                //供应商
+  modelName: string;               //模型名称
+  requestTime: string;             //请求时间
+  responseTime: string;            //响应时间
+  durationSeconds: number;         //对话运行时间
+  messageId: string;               //模型返回消息ID
+  audioUrl: string;                //输出音频地址
+  price: number;                   //消费价格
+  credit: number;                  //消费算力
+}
 
 export interface AigcSumUsageVo {
   balance?: number;    //算力余额

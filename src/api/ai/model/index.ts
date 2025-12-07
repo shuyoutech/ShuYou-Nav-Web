@@ -65,3 +65,14 @@ export function hotModelListApi(): Promise<AxiosResponse<ModelVo[]>> {
     method: 'post'
   });
 }
+
+/**
+ * 模型管理-模型树
+ */
+export function modelTreeApi(data: ModelQuery): Promise<AxiosResponse<Tree<ModelVo>[]>> {
+  return api({
+    url: '/model/tree',
+    method: 'post',
+    data: data
+  });
+}

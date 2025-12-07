@@ -3,6 +3,9 @@ import {useUserStore} from '@/store/modules/user.ts'
 import {ElMessage} from 'element-plus'
 import {authAuthorize, authSendSms} from "@/api/auth";
 import {memberBindMobileApi} from "@/api/member";
+import {payGetWalletApi} from "@/api/pay";
+import RechargeModal from '@/components/RechargeModal/index.vue'
+import {setCookie} from "@/utils/cookie.ts";
 
 const router = useRouter()
 
@@ -42,6 +45,12 @@ const getUserAvatar = () => {
 // 获取用户昵称
 const getUserNickname = () => {
   return userStore.nickname || ''
+}
+
+// 充值弹窗相关
+const showRechargeModal = ref(false)
+const handleRecharge = () => {
+  showRechargeModal.value = true
 }
 
 // 处理手机绑定
@@ -156,14 +165,22 @@ const submitMobileBinding = async () => {
 
   try {
     // 这里应该调用绑定手机的API
-    await memberBindMobileApi(mobileForm.value.mobile, mobileForm.value.code)
-    ElMessage.success('手机绑定成功！')
-
-    // 更新用户信息
-    await userStore.getMemberInfo()
-    closeMobileModal()
+    const res = await memberBindMobileApi(mobileForm.value.mobile, mobileForm.value.code)
+    if (res.code === 0) {
+      if (res.data && res.data.accessToken) {
+        // 更新用户信息
+        await userStore.updateAccessToken(res.data)
+      } else {
+        // 更新用户信息
+        await userStore.getMemberInfo()
+      }
+      ElMessage.success('手机绑定成功！')
+      closeMobileModal()
+    } else {
+      ElMessage.error('绑定失败，请重试')
+    }
   } catch (error) {
-    ElMessage.error('绑定失败，请重试')
+    ElMessage.error('绑定失败，请重试!')
   }
 }
 
@@ -179,14 +196,30 @@ const closeMobileModal = () => {
 }
 
 const props = defineProps<Props>()
+watch(() => props.visible, (newVal) => {
+  if (userStore.userInfo?.mobile === '') {
+    showMobileModal.value = true
+    mobileForm.value = {mobile: '', code: ''}
+  } else {
+    if (newVal) {
+      getUserPower()
+    }
+  }
+})
 // 登录后若没有绑定手机,则弹出绑定手机弹窗
 watch(() => userStore.userInfo?.mobile, (newVal) => {
   if (userStore.token && newVal === '') {
     showMobileModal.value = true
-    mobileForm.value = { mobile: '', code: '' }
+    mobileForm.value = {mobile: '', code: ''}
   }
-}, { deep: true, immediate: true })
-
+}, {deep: true, immediate: true})
+// 获取用户算力值
+const balance = ref<number>(0)
+const getUserPower = () => {
+  payGetWalletApi().then((res: any) => {
+    balance.value = res.data.balance || 0
+  })
+}
 
 </script>
 
@@ -206,6 +239,18 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
           <img v-else src="@/assets/images/avatar.png" alt="User"/>
         </div>
         <h2 class="username">{{ getUserNickname() }}</h2>
+
+        <!-- 用户算力信息 -->
+        <div class="power-section">
+          <div class="power-info">
+            <span class="power-label">算力:</span>
+            <span class="power-value"> {{ balance }}</span>
+          </div>
+          <button v-auth="'请先登录后再进行充值'" class="recharge-btn" @click="handleRecharge">
+            <FaIcon name="i-mdi:credit-card-plus"/>
+            充值
+          </button>
+        </div>
       </div>
 
       <!-- 账户绑定选项 -->
@@ -290,9 +335,9 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   <div v-if="showMobileModal" class="mobile-modal-overlay">
     <div class="mobile-modal" @click.stop>
       <!-- 关闭按钮 -->
-      <button class="modal-close-btn" @click="closeMobileModal">
-        <FaIcon name="i-mdi:close"/>
-      </button>
+      <!--  <button class="modal-close-btn" @click="closeMobileModal">
+              <FaIcon name="i-mdi:close"/>
+            </button>-->
 
       <!-- 标题 -->
       <h2 class="modal-title">手机快速绑定</h2>
@@ -344,6 +389,9 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
       </button>
     </div>
   </div>
+
+  <!-- 充值弹窗 -->
+  <RechargeModal v-model:visible="showRechargeModal" @update:visible="getUserPower"/>
 </template>
 
 <style scoped>
@@ -478,6 +526,70 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   text-shadow: none;
 }
 
+/* 算力信息样式 */
+.power-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+}
+
+.power-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.power-label {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.power-value {
+  font-size: 16px;
+  color: #3b82f6;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.recharge-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.recharge-btn:hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.recharge-btn:active {
+  transform: translateY(0);
+}
+
+.recharge-btn .fa-icon {
+  font-size: 14px;
+}
+
 /* 账户绑定选项 */
 .binding-section {
   margin-bottom: 20px;
@@ -570,17 +682,35 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   }
 
   .profile-popup {
-    width: 300px;
-    padding: 20px;
+    width: 340px;
+    padding: 24px;
   }
 
   .user-avatar {
-    width: 70px;
-    height: 70px;
+    width: 80px;
+    height: 80px;
   }
 
   .username {
-    font-size: 18px;
+    font-size: 20px;
+  }
+
+  .power-section {
+    margin-top: 14px;
+    padding: 10px 14px;
+  }
+
+  .power-label {
+    font-size: 13px;
+  }
+
+  .power-value {
+    font-size: 16px;
+  }
+
+  .recharge-btn {
+    padding: 7px 14px;
+    font-size: 12px;
   }
 }
 
@@ -590,21 +720,51 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   }
 
   .profile-popup {
-    width: 280px;
-    padding: 16px;
+    width: 320px;
+    padding: 20px;
   }
 
   .user-avatar {
-    width: 60px;
-    height: 60px;
+    width: 72px;
+    height: 72px;
   }
 
   .username {
+    font-size: 18px;
+  }
+
+  .power-section {
+    margin-top: 12px;
+    padding: 10px 12px;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .power-info {
+    justify-content: center;
+  }
+
+  .power-label {
+    font-size: 13px;
+  }
+
+  .power-value {
     font-size: 16px;
   }
 
+  .recharge-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    justify-content: center;
+  }
+
   .binding-left {
-    font-size: 13px;
+    font-size: 14px;
+  }
+
+  .binding-item {
+    padding: 12px 14px;
   }
 }
 
@@ -780,7 +940,8 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -789,21 +950,87 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
 }
 
 .mobile-modal {
-  background: #1a1a1a;
-  border-radius: 16px;
-  padding: 30px;
-  width: 400px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border-radius: 24px;
+  padding: 40px;
+  width: 440px;
   max-width: 90vw;
   text-align: center;
   position: relative;
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+  0 8px 24px rgba(0, 0, 0, 0.3),
+  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mobile-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 180px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(168, 85, 247, 0.08) 100%);
+  border-radius: 24px 24px 0 0;
+  pointer-events: none;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1) rotate(90deg);
+}
+
+.modal-close-btn:active {
+  transform: scale(0.95) rotate(90deg);
+}
+
+.modal-title {
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.modal-desc {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 32px;
+  position: relative;
+  z-index: 1;
 }
 
 .form-container {
-  margin: 30px 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  position: relative;
+  z-index: 1;
 }
 
 .input-group {
@@ -814,23 +1041,33 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   position: relative;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0 18px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
 }
 
 .input-wrapper:focus-within {
   border-color: #8b5cf6;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25),
+  0 4px 12px rgba(139, 92, 246, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
 }
 
 .input-icon {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 18px;
-  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  margin-right: 14px;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: #a855f7;
+  transform: scale(1.1);
 }
 
 .form-input {
@@ -840,90 +1077,167 @@ watch(() => userStore.userInfo?.mobile, (newVal) => {
   outline: none;
   color: white;
   font-size: 16px;
-  padding: 16px 0;
-  height: 50px;
+  padding: 18px 0;
+  height: 56px;
+  font-weight: 500;
 }
 
 .form-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
+  font-weight: 400;
 }
 
 .send-code-btn {
-  background: #8b5cf6;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
-  margin-left: 6px;
+  margin-left: 8px;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3),
+  inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.3px;
 }
 
 .send-code-btn:hover:not(:disabled) {
-  background: #7c3aed;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.send-code-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3),
+  inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .send-code-btn:disabled {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
   color: rgba(255, 255, 255, 0.5);
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .bind-btn {
   width: 100%;
-  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);
   color: white;
   border: none;
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 14px;
+  padding: 18px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 24px;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bind-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.bind-btn:hover::before {
+  left: 100%;
 }
 
 .bind-btn:hover {
-  background: linear-gradient(135deg, #7c3aed, #6d28d9);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.5),
+  inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.bind-btn:active {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4),
+  inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* 响应式设计 */
 @media (max-width: 480px) {
   .mobile-modal {
-    width: 350px;
-    padding: 25px 20px;
+    width: 360px;
+    padding: 32px 24px;
   }
 
   .modal-title {
-    font-size: 20px;
+    font-size: 24px;
+  }
+
+  .modal-desc {
+    font-size: 13px;
+    margin-bottom: 28px;
   }
 
   .form-container {
-    margin: 25px 0;
-    gap: 16px;
+    gap: 18px;
+  }
+
+  .input-wrapper {
+    padding: 0 16px;
+    border-radius: 12px;
+  }
+
+  .input-icon {
+    font-size: 18px;
+    margin-right: 12px;
   }
 
   .form-input {
-    font-size: 14px;
-    padding: 14px 0;
-    height: 45px;
+    font-size: 15px;
+    padding: 16px 0;
+    height: 52px;
   }
 
   .send-code-btn {
-    padding: 6px 12px;
+    padding: 8px 14px;
     font-size: 12px;
+    margin-left: 6px;
   }
 
   .bind-btn {
-    padding: 14px;
+    padding: 16px;
     font-size: 15px;
+    margin-top: 20px;
   }
 }
 </style>

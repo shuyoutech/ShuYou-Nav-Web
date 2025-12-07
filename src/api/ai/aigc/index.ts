@@ -1,18 +1,18 @@
 import type {AxiosResponse} from "axios";
 import type {
   AigcModelChatMsg,
-  AigcSumUsageVo, AigcUsageMonthVo, AigcUsageQuery, AigcUsageRecordVo, AudioModelBo,
+  AigcSumUsageVo, AigcUsageMonthVo, AigcUsageQuery, AigcUsageRecordVo, AudioMessageVo, AudioModelBo,
   ChatConversationVo,
   ChatMessageVo,
-  ChatModelBo,
-  ImageModelBo, VideoModelBo
+  ChatModelBo, ImageMessageVo,
+  ImageModelBo, VideoMessageVo, VideoModelBo
 } from "@/api/ai/aigc/types.ts";
 import api from "@/utils/axios.ts";
 
 /**
  * 对话管理-对话接口
  */
-export function chatApi(data: ChatModelBo) : Promise<AxiosResponse<AigcModelChatMsg>> {
+export function chatApi(data: ChatModelBo): Promise<AxiosResponse<AigcModelChatMsg>> {
   return api({
     url: '/v1/chat',
     method: 'post',
@@ -67,11 +67,54 @@ export function chatConversationDeleteApi(conversationId: string): Promise<Axios
 }
 
 /**
+ * 对话管理-清除对话窗口
+ */
+export function chatConversationClearApi() {
+  return api({
+    url: '/chat/conversation/clear',
+    method: 'post',
+  });
+}
+
+/**
  * 对话管理-对话消息分页列表
  */
 export function chatMessagePageApi(data: any): Promise<AxiosResponse<PageResult<ChatMessageVo>>> {
   return api({
     url: '/aigc/chat/message/page',
+    method: 'post',
+    data,
+  });
+}
+
+/**
+ * 绘画管理-分页列表
+ */
+export function imageMessagePageApi(data: any): Promise<AxiosResponse<PageResult<ImageMessageVo>>> {
+  return api({
+    url: '/aigc/image/message/page',
+    method: 'post',
+    data,
+  });
+}
+
+/**
+ * 视频管理-分页列表
+ */
+export function videoMessagePageApi(data: any): Promise<AxiosResponse<PageResult<VideoMessageVo>>> {
+  return api({
+    url: '/aigc/video/message/page',
+    method: 'post',
+    data,
+  });
+}
+
+/**
+ * 音频管理-分页列表
+ */
+export function audioMessagePageApi(data: any): Promise<AxiosResponse<PageResult<AudioMessageVo>>> {
+  return api({
+    url: '/aigc/audio/message/page',
     method: 'post',
     data,
   });
